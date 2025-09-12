@@ -28,6 +28,12 @@ func main() {
 		utils.JSONResponse(w, true, "API is running", []string{
 			"/ - root endpoint",
 			"/twitter?url={tweet_url} - Download images from a tweet",
+			"/pinterest?url={pinterest_url} - Download images from a Pinterest post",
+			"/instagram?url={instagram_url} - Download images from an Instagram post",
+			"/generic?url={image_url} - Download image from a generic URL",
+			"/resolve?url={short_url} - Resolve a shortened URL to its final destination",
+			"/resolve/pinterest?url={pinterest_short_url} - Resolve a Pinterest short URL to its final destination",
+			"/proxy/image?url={image_url} - Proxy an image URL to avoid CORS issues",
 		})
 	})
 

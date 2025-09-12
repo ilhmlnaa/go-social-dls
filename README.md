@@ -1,12 +1,11 @@
-# 🐦 Twitter Downloader (Golang)
+# 🌐 Media Downloader (Golang)
 
 **Twitter Downloader** is a simple media downloader built with **Golang** to fetch videos and images directly from Twitter. The project is designed with flexibility in mind, making it easy to extend support to other platforms like **Instagram** in the future.
 
 ## Features
 
-- ✅ Download media (video/image) directly from Twitter.
+- ✅ Download media (video/image) directly from instagram, facebook, x and more!.
 - ✅ Simple and clean API endpoint.
-- ✅ Modular structure for easy future expansion (e.g., Instagram).
 - ✅ Lightweight and fast — run as a single binary or with Docker.
 
 ## Installation
@@ -16,7 +15,7 @@
 Clone the repository and start the server using Go:
 
 ```bash
-git clone https://github.com/username/twitter-downloader.git
+git clone https://github.com/ilhmlnaa/media-downloader-go.git
 cd twitter-downloader
 go run main.go
 ```

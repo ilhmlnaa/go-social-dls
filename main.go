@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"twitter-down/handlers/resolve"
 
 	"github.com/joho/godotenv"
 
 	"twitter-down/handlers"
 	"twitter-down/middleware"
+	"twitter-down/proxy"
 	"twitter-down/utils"
 )
 
@@ -34,6 +36,11 @@ func main() {
 	mux.Handle("/twitter", middleware.CORS(handlers.TwitterDownloadHandler()))
 	mux.Handle("/pinterest", middleware.CORS(handlers.PinterestDownloadHandler()))
 	mux.Handle("/instagram", middleware.CORS(handlers.InstagramDownloadHandler()))
+
+	//  API Endpoint Helpers
+	mux.Handle("/resolve", middleware.CORS(resolve.GenericResolveUrl()))
+	mux.Handle("/resolve/pinterest", middleware.CORS(resolve.ResolvePinterestUrl()))
+	mux.Handle("/proxy/image", middleware.CORS(proxy.ImageProxyHandler()))
 
 	// Serve static files
 	fileServer := http.FileServer(http.Dir("./static"))

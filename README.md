@@ -32,22 +32,28 @@ go build -o twitter-dl
 Build the Docker image:
 
 ```bash
-docker build -t twitter-downloader .
+docker build -t go-social-dls .
 ```
+or pull the pre-built image from Docker Hub:
+
+```bash
+docker pull ghcr.io/ilhmlnaa/go-social-dls:latest
+```
+
 
 Run the Docker container:
 
 ```bash
-docker run -d -p 3000:3000 --name twitter-dl \
+docker run -d -p 3000:3000 --name go-social-dls \
   -e TWITTER_AUTH_TOKEN=your_twitter_auth_token \
   -e TWITTER_CSRF_TOKEN=your_twitter_csrf_token \
-  twitter-downloader
+  go-social-dls
 ```
 
 Once running, your API will be available at:
 
 ```
-http://localhost:3000/dl?url=twitter_url
+http://localhost:3000
 ```
 
 ## Environment Variables
@@ -70,14 +76,17 @@ PORT=3000
 
 Currently, the project provides a single API endpoint:
 
-**GET** `/dl?url={twitter_url}`
+**GET** `/twitter?url={twitter_url}`
+**GET** `/pinterest?url={pinterest_url}`
+**GET** `/twitter?url={twitter_url}`
+
 
 This endpoint allows you to download media from a Twitter link.
 
 ### Example usage with curl:
 
 ```bash
-curl "http://localhost:3000/dl?url=https://twitter.com/username/status/1234567890"
+curl "http://localhost:3000/twitter?url=https://twitter.com/username/status/1234567890"
 ```
 
 If you prefer to get the direct media URL, the API will return a JSON response:

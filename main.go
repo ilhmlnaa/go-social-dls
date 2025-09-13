@@ -42,6 +42,7 @@ func main() {
 	mux.Handle("/twitter", middleware.CORS(handlers.TwitterDownloadHandler()))
 	mux.Handle("/pinterest", middleware.CORS(handlers.PinterestDownloadHandler()))
 	mux.Handle("/instagram", middleware.CORS(handlers.InstagramDownloadHandler()))
+	mux.Handle("/facebook", middleware.CORS(handlers.FacebookDownloadHandler()))
 
 	//  API Endpoint Helpers
 	mux.Handle("/resolve", middleware.CORS(resolve.GenericResolveUrl()))

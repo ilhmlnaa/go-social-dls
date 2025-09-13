@@ -27,7 +27,7 @@ func main() {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		utils.JSONResponse(w, true, "API is running", []string{
 			"/ - root endpoint",
-			"/twitter?url={tweet_url} - Download images from a tweet",
+			"/twitter?url={tweet_url} - Download images from a tweets",
 			"/pinterest?url={pinterest_url} - Download images from a Pinterest post",
 			"/instagram?url={instagram_url} - Download images from an Instagram post",
 			"/generic?url={image_url} - Download image from a generic URL",

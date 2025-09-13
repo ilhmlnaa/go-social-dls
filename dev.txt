@@ -1,0 +1,6 @@
+https://elpahlevi.medium.com/menerapkan-live-reloading-di-golang-b9260f795b00
+https://medium.com/@giofahreza/live-hot-reload-golang-5ffbf8686fd9
+
+air
+reflex -s -r '\.go$$' go run main.go
+reflex -c reflex.conf 

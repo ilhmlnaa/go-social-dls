@@ -3,25 +3,14 @@ package handlers
 import (
 	"bytes"
 	"io"
-	"math/rand"
 	"mime"
 	"net/http"
 	"path"
 	"strings"
-	"time"
 
 	"twitter-down/utils"
 )
 
-func GenerateRandomString(n int) string {
-	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letters[r.Intn(len(letters))]
-	}
-	return string(b)
-}
 
 func getFilenameFromResponse(resp *http.Response, imageURL string) string {
 	contentDisposition := resp.Header.Get("Content-Disposition")
@@ -61,7 +50,7 @@ func getFilenameFromResponse(resp *http.Response, imageURL string) string {
 
 	filename := path.Base(strings.Split(imageURL, "?")[0])
 	if filename == "" || filename == "." || filename == "/" {
-		filename = "downloaded_" + GenerateRandomString(8)
+		filename = "downloaded_" + utils.GenerateRandomString(8)
 	}
 
 	if !strings.Contains(filename, ".") {

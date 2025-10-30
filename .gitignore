@@ -5,5 +5,7 @@ dev
 sumber.txt
 ./sumber.txt
 .idea
+.vscode
 /tmp
+tmp
 *.exe

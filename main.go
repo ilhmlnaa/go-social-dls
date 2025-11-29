@@ -27,6 +27,7 @@ func main() {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		utils.JSONResponse(w, true, "API is running", []string{
 			"/ - root endpoint",
+			"/health/twitter - Check Twitter API credentials status",
 			"/twitter?url={tweet_url} - Download images from a tweet",
 			"/pinterest?url={pinterest_url} - Download images from a Pinterest post",
 			"/instagram?url={instagram_url} - Download images from an Instagram post",
@@ -37,9 +38,12 @@ func main() {
 		})
 	})
 
+	// Health check endpoints
+	mux.Handle("/health/twitter", middleware.CORS(handlers.TwitterHealthCheckHandler()))
+
 	// API Endpoints with CORS middleware
 	mux.Handle("/generic", middleware.CORS(handlers.GenericDownloadHandler()))
-	mux.Handle("/twitter", middleware.CORS(handlers.TwitterDownloadHandler()))
+	mux.Handle("/twitter", middleware.CORS(handlers.TwitterDownloadHandlerPython())) // Using Python twscrape
 	mux.Handle("/pinterest", middleware.CORS(handlers.PinterestDownloadHandler()))
 	mux.Handle("/instagram", middleware.CORS(handlers.InstagramDownloadHandler()))
 	mux.Handle("/facebook", middleware.CORS(handlers.FacebookDownloadHandler()))

@@ -7,7 +7,6 @@ import (
 	"twitter-down/internal/models"
 )
 
-// HealthCheck returns the health status of the API
 func HealthCheck(c *fiber.Ctx) error {
 	cfg := config.Load()
 

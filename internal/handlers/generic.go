@@ -12,7 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"twitter-down/internal/models"
-	"twitter-down/utils"
+	"twitter-down/internal/utils"
 )
 
 func getFilenameFromResponse(resp *http.Response, imageURL string) string {

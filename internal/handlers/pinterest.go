@@ -10,7 +10,6 @@ import (
 	"twitter-down/internal/models"
 )
 
-// PinterestDownload handles Pinterest image download requests
 func PinterestDownload(c *fiber.Ctx) error {
 	urlPin := c.Query("url")
 	if urlPin == "" {

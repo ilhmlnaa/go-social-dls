@@ -6,7 +6,6 @@ import (
 	"twitter-down/internal/models"
 )
 
-// Root returns API information and available endpoints
 func Root(c *fiber.Ctx) error {
 	endpoints := []string{
 		"GET /health - Health check",

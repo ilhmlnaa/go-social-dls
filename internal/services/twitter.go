@@ -12,13 +12,12 @@ import (
 	"twitter-down/internal/utils"
 )
 
-// TwitterService handles Twitter API operations
 type TwitterService struct {
 	client  *http.Client
 	cookies map[string]string
 }
 
-// TwitterGraphQLResponse represents the response from Twitter GraphQL API
+
 type TwitterGraphQLResponse struct {
 	Data struct {
 		TweetResult struct {
@@ -38,15 +37,12 @@ type TwitterGraphQLResponse struct {
 	} `json:"data"`
 }
 
-// NewTwitterService creates a new Twitter service instance
 func NewTwitterService(cookiesDir string) (*TwitterService, error) {
-	// Load cookies
 	cookies, err := utils.LoadCookies(cookiesDir, "twitter")
 	if err != nil {
 		return nil, err
 	}
 
-	// Validate required cookies
 	required := []string{"auth_token", "ct0"}
 	if err := utils.ValidateCookies(cookies, required); err != nil {
 		return nil, err
@@ -58,18 +54,14 @@ func NewTwitterService(cookiesDir string) (*TwitterService, error) {
 	}, nil
 }
 
-// GetTweetPhotos fetches photo URLs from a tweet
 func (s *TwitterService) GetTweetPhotos(tweetID string) ([]string, error) {
-	// Build GraphQL request URL
 	baseURL := "https://twitter.com/i/api/graphql/0hWvDhmW8YQ-S_ib3azIrw/TweetResultByRestId"
 
-	// Create request
 	req, err := http.NewRequest("GET", baseURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Add headers
 	req.Header.Set("authorization", "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA")
 	req.Header.Set("content-type", "application/json")
 	req.Header.Set("referer", fmt.Sprintf("https://twitter.com/i/status/%s", tweetID))
@@ -79,7 +71,6 @@ func (s *TwitterService) GetTweetPhotos(tweetID string) ([]string, error) {
 	req.Header.Set("x-twitter-auth-type", "OAuth2Session")
 	req.Header.Set("x-twitter-client-language", "en")
 
-	// Add cookies
 	for name, value := range s.cookies {
 		req.AddCookie(&http.Cookie{
 			Name:  name,
@@ -87,7 +78,6 @@ func (s *TwitterService) GetTweetPhotos(tweetID string) ([]string, error) {
 		})
 	}
 
-	// Build query parameters
 	variables := map[string]interface{}{
 		"tweetId":                     tweetID,
 		"withCommunity":               false,
@@ -123,46 +113,38 @@ func (s *TwitterService) GetTweetPhotos(tweetID string) ([]string, error) {
 		"responsive_web_media_download_video_enabled":                          true,
 	}
 
-	// Marshal to JSON strings
 	variablesJSON, _ := json.Marshal(variables)
 	featuresJSON, _ := json.Marshal(features)
 
-	// Add query parameters
 	q := req.URL.Query()
 	q.Add("variables", string(variablesJSON))
 	q.Add("features", string(featuresJSON))
 	req.URL.RawQuery = q.Encode()
 
-	// Execute request
 	resp, err := s.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Check status code
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}
 
-	// Parse response
 	var result TwitterGraphQLResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	// Check if tweet exists
 	if result.Data.TweetResult.Result.Typename == "TweetUnavailable" {
 		return nil, fmt.Errorf("tweet not found or unavailable")
 	}
 
-	// Extract photos
 	media := result.Data.TweetResult.Result.Legacy.ExtendedEntities.Media
 	var photos []string
 	for _, m := range media {
 		if m.Type == "photo" {
-			// Get highest quality
 			mediaURL := m.MediaURLHTTPS
 			if !strings.Contains(mediaURL, "?") {
 				mediaURL += "?name=large"
@@ -180,15 +162,12 @@ func (s *TwitterService) GetTweetPhotos(tweetID string) ([]string, error) {
 	return photos, nil
 }
 
-// ExtractTweetID extracts tweet ID from various Twitter URL formats
 func ExtractTweetID(tweetURL string) (string, error) {
-	// Parse URL
 	u, err := url.Parse(tweetURL)
 	if err != nil {
 		return "", fmt.Errorf("invalid URL: %w", err)
 	}
 
-	// Extract from path
 	re := regexp.MustCompile(`status/(\d+)`)
 	matches := re.FindStringSubmatch(u.Path)
 	if len(matches) < 2 {

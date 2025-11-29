@@ -11,9 +11,7 @@ import (
 	"twitter-down/internal/services"
 )
 
-// TwitterDownload handles Twitter photo download requests
 func TwitterDownload(c *fiber.Ctx) error {
-	// Get URL parameter
 	urlParam := c.Query("url")
 	if urlParam == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewErrorResponse(
@@ -22,7 +20,6 @@ func TwitterDownload(c *fiber.Ctx) error {
 		))
 	}
 
-	// Extract tweet ID
 	tweetID, err := services.ExtractTweetID(urlParam)
 	if err != nil {
 		log.Printf("[Twitter] Failed to extract tweet ID from %s: %v", urlParam, err)
@@ -32,10 +29,9 @@ func TwitterDownload(c *fiber.Ctx) error {
 		))
 	}
 
-	// Load config
+
 	cfg := config.Load()
 
-	// Initialize Twitter service
 	twitterSvc, err := services.NewTwitterService(cfg.CookiesDir)
 	if err != nil {
 		log.Printf("[Twitter] Failed to initialize service: %v", err)
@@ -45,7 +41,6 @@ func TwitterDownload(c *fiber.Ctx) error {
 		))
 	}
 
-	// Fetch photos
 	photos, err := twitterSvc.GetTweetPhotos(tweetID)
 	if err != nil {
 		log.Printf("[Twitter] Failed to fetch photos for tweet %s: %v", tweetID, err)
@@ -57,7 +52,6 @@ func TwitterDownload(c *fiber.Ctx) error {
 
 	log.Printf("[Twitter] Successfully fetched %d photos for tweet %s", len(photos), tweetID)
 
-	// Return success response
 	return c.JSON(models.NewSuccessResponse(
 		fmt.Sprintf("Successfully fetched %d photo(s)", len(photos)),
 		photos,

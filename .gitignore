@@ -1,13 +1,55 @@
+# Environment & Configuration
 .env
+.env.local
+.env.*.local
+
+# IDE & Editors
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Build & Binaries
+tmp/
+build/
+dist/
+server
+twitter-down-v2
+*.exe
+*.out
+*.test
+build-errors.log
+
+# Development
 /dev
 dev
 ./dev
 sumber.txt
 ./sumber.txt
-.idea
-.vscode
-/tmp
-tmp
-*.execookie.json
+*.log
+
+# Cookies & Credentials (IMPORTANT!)
+cookies/*.json
+!cookies/.gitkeep
+cookie.json
+
+# Database
 accounts.db
 *.db
+*.sqlite
+*.sqlite3
+
+# Dependencies
+vendor/
+node_modules/
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.bak
+
+# Test coverage
+*.coverprofile
+coverage.out
+coverage.html

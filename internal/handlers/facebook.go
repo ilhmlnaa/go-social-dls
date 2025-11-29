@@ -11,9 +11,7 @@ import (
 	"twitter-down/internal/services"
 )
 
-// FacebookDownload handles Facebook photo download requests
 func FacebookDownload(c *fiber.Ctx) error {
-	// Get URL parameter
 	urlParam := c.Query("url")
 	if urlParam == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewErrorResponse(
@@ -22,10 +20,8 @@ func FacebookDownload(c *fiber.Ctx) error {
 		))
 	}
 
-	// Load config
 	cfg := config.Load()
 
-	// Initialize Facebook service
 	fbSvc, err := services.NewFacebookService(cfg.CookiesDir)
 	if err != nil {
 		log.Printf("[Facebook] Failed to initialize service: %v", err)
@@ -35,7 +31,6 @@ func FacebookDownload(c *fiber.Ctx) error {
 		))
 	}
 
-	// Fetch photos
 	photos, err := fbSvc.GetPhotoURLs(urlParam)
 	if err != nil {
 		log.Printf("[Facebook] Failed to fetch photos from %s: %v", urlParam, err)
@@ -47,7 +42,6 @@ func FacebookDownload(c *fiber.Ctx) error {
 
 	log.Printf("[Facebook] Successfully fetched %d photos", len(photos))
 
-	// Return success response
 	return c.JSON(models.NewSuccessResponse(
 		fmt.Sprintf("Successfully fetched %d photo(s)", len(photos)),
 		photos,

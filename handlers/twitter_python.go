@@ -105,8 +105,8 @@ func TwitterDownloadHandlerPython() http.HandlerFunc {
 
 // callPythonScraper calls the Python scraper script
 func callPythonScraper(tweetID string) (*TwitterScraperResponse, error) {
-	// Path to Python script
-	scriptPath := "scripts/twitter_scraper.py"
+	// Path to Python script - using cookies version
+	scriptPath := "scripts/twitter_scraper_cookies.py"
 	
 	// Execute Python script
 	cmd := exec.Command("python3", scriptPath, tweetID)

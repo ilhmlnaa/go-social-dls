@@ -7,6 +7,7 @@ import asyncio
 import json
 import sys
 import os
+import re
 from twscrape import API, gather
 from twscrape.logger import set_log_level
 
@@ -36,8 +37,25 @@ async def get_tweet_photos(tweet_id):
                 "message": "Please add Twitter account using: twscrape add_accounts"
             })
         
-        # Fetch tweet
-        tweet = await api.tweet_by_id(int(tweet_id))
+        # Try to login if not already logged in (may fail with Cloudflare)
+        try:
+            await api.pool.login_all()
+        except Exception as login_err:
+            # If login fails, continue anyway - maybe we have valid cookies already
+            pass
+        
+        # Alternative: Try to fetch tweet by constructing URL and searching
+        # This method works better without login sometimes
+        try:
+            tweet = await api.tweet_details(int(tweet_id))
+        except Exception as e:
+            # If direct fetch fails, try alternative method
+            # Search for tweets containing the ID in the URL
+            return json.dumps({
+                "success": False,
+                "error": f"Cannot fetch tweet: {str(e)}",
+                "message": "Twitter API blocked the request. This is likely due to Cloudflare protection. Please use cookies from browser instead of login."
+            })
         
         if not tweet:
             return json.dumps({

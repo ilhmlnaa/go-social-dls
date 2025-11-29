@@ -149,42 +149,43 @@ This project is licensed under the MIT License — feel free to use, modify, and
 
 ## 🐦 Twitter Endpoint Setup
 
-**NEW:** Twitter endpoint now uses Python `twscrape` library for better reliability and stability.
+**TERBARU:** Twitter endpoint uses browser cookies - paling simple dan reliable!
 
-### Quick Setup
+### Quick Setup (3 Steps)
 
 1. **Install Python dependencies:**
    ```bash
    pip3 install -r requirements.txt
    ```
 
-2. **Add Twitter account for scraping:**
-   ```bash
-   python3 scripts/setup_twscrape.py add <username> <password> <email> <email_password>
-   ```
+2. **Export cookies dari browser:**
+   - Install [Cookie-Editor](https://chrome.google.com/webstore/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm) extension
+   - Login ke Twitter/X di browser
+   - Click Cookie-Editor icon → Export → JSON
+   - Save as `cookie.json` di root folder project
 
-3. **Verify setup:**
+3. **Test & Run:**
    ```bash
-   python3 scripts/setup_twscrape.py list
-   ```
-
-4. **Test scraper:**
-   ```bash
-   python3 scripts/twitter_scraper.py 1234567890
+   # Test Python script
+   python3 scripts/twitter_scraper_cookies.py 1234567890
+   
+   # Run server
+   go build -o twitter-down
+   ./twitter-down
    ```
 
 ### Full Documentation
 
-For complete setup guide and troubleshooting, see: **[TWITTER_TWSCRAPE_SETUP.md](./TWITTER_TWSCRAPE_SETUP.md)**
+For complete setup guide with screenshots and troubleshooting, see: **[TWITTER_COOKIES_SETUP.md](./TWITTER_COOKIES_SETUP.md)**
 
-### Why Python twscrape?
+### Why Browser Cookies Method?
 
-- ✅ More stable than Go packages
-- ✅ Actively maintained
-- ✅ Better rate limit handling
-- ✅ Account rotation support
-- ✅ No need for manual cookie management
+- ✅ **Paling simple** - cukup export cookies sekali
+- ✅ **No Cloudflare blocking** - karena pakai cookies dari browser asli  
+- ✅ **No login automation** - tidak perlu worry tentang bot detection
+- ✅ **Stable dan reliable** - selama cookies valid, akan terus jalan
+- ✅ **No rate limit issues** - karena pakai cookies akun Anda sendiri
 
 ---
 
-**Note:** The old cookie-based authentication method is deprecated. Use twscrape setup above.
+**Important:** Jangan commit file `cookie.json` ke Git! Add ke `.gitignore`.

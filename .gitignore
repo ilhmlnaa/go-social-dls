@@ -8,4 +8,6 @@ sumber.txt
 .vscode
 /tmp
 tmp
-*.exe
+*.execookie.json
+accounts.db
+*.db

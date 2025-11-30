@@ -14,6 +14,8 @@ func Root(c *fiber.Ctx) error {
 		"GET /api/v1/pinterest?url={pin_url} - Download Pinterest images",
 		"GET /api/v1/instagram?url={ig_url} - Download Instagram images",
 		"GET /api/v1/generic?url={image_url} - Download any image",
+		"GET /proxy/image?imageUrl={image_url} - Proxy Pinterest image to avoid CORS",
+		"GET /resolve/pinterest?url={pinterest_short_url} - Resolve Pinterest short URL",
 	}
 
 	return c.JSON(models.NewSuccessResponse(

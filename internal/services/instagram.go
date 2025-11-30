@@ -126,14 +126,30 @@ func (s *InstagramBrowserService) GetPostImages(postURL string) ([]string, error
 
 	log.Printf("[Instagram Browser] Loaded %d cookies", len(cookieList))
 
+	// opts := append(chromedp.DefaultExecAllocatorOptions[:],
+	// 	// chromedp.ExecPath("/usr/bin/google-chrome"),
+	// 	chromedp.ExecPath(os.Getenv("CHROME_BIN")),
+	// 	chromedp.NoSandbox,
+	// 	chromedp.Flag("headless", true),
+	// 	chromedp.Flag("disable-gpu", true),
+	// 	chromedp.Flag("disable-dev-shm-usage", true),
+	// )
+
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		// chromedp.ExecPath("/usr/bin/google-chrome"),
-		chromedp.ExecPath(os.Getenv("CHROME_BIN")),
 		chromedp.NoSandbox,
 		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", true),
 		chromedp.Flag("disable-dev-shm-usage", true),
 	)
+
+	if bin := os.Getenv("CHROME_BIN"); bin != "" {
+		if _, err := os.Stat(bin); err == nil {
+			opts = append(opts, chromedp.ExecPath(bin))
+		} else {
+			log.Printf("[Instagram Browser] CHROME_BIN=%s tidak ditemukan, fallback ke auto-detect", bin)
+		}
+	}
+
 
 	allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
 	defer cancelAlloc()

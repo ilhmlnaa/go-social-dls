@@ -20,10 +20,14 @@ RUN ARCH=$(dpkg --print-architecture) && \
         echo "Installing Google Chrome for AMD64..."; \
         wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
         apt-get install -y ./google-chrome-stable_current_amd64.deb --no-install-recommends && \
-        rm google-chrome-stable_current_amd64.deb; \
+        rm -f google-chrome-stable_current_amd64.deb && \
+        ln -sf /usr/bin/google-chrome /usr/bin/chrome; \
     else \
-        echo "Installing Chromium for ARM64..."; \
-        apt-get install -y chromium chromium-common chromium-driver --no-install-recommends; \
+        echo "Installing Chromium for non-AMD64..."; \
+        apt-get install -y chromium chromium-common --no-install-recommends && \
+        if [ -x /usr/bin/chromium ]; then ln -sf /usr/bin/chromium /usr/bin/chrome; \
+        elif [ -x /usr/bin/chromium-browser ]; then ln -sf /usr/bin/chromium-browser /usr/bin/chrome; \
+        else echo "Chromium binary not found"; exit 1; fi; \
     fi && \
     apt-get install -y \
         fonts-liberation \
@@ -50,8 +54,8 @@ RUN ARCH=$(dpkg --print-architecture) && \
     && rm -rf /var/lib/apt/lists/*
 
 
-ENV CHROME_BIN=/usr/bin/google-chrome \
-    CHROME_PATH=/usr/bin/google-chrome
+ENV CHROME_BIN=/usr/bin/chrome \
+    CHROME_PATH=/usr/bin/chrome
 
 WORKDIR /app
 COPY --from=builder /app/server .
@@ -60,3 +64,4 @@ RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
 CMD ["./server"]
+

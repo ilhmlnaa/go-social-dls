@@ -69,27 +69,22 @@ func (s *FacebookService) NormalizeFacebookURL(fbURL string) (string, error) {
 		return "", fmt.Errorf("invalid URL: %w", err)
 	}
 
-	// Format 1: /photo?fbid=... (already in correct format)
 	if strings.Contains(u.Path, "/photo") && u.Query().Get("fbid") != "" {
 		return fbURL, nil
 	}
 
-	// Format 2: /share/p/... (modern share format)
 	if strings.Contains(u.Path, "/share/p/") {
 		return s.resolveShareURL(fbURL)
 	}
 
-	// Format 3: /share/... (other share formats)
 	if strings.Contains(u.Path, "/share/") {
 		return s.resolveShareURL(fbURL)
 	}
 
-	// Format 4: /permalink.php?story_fbid=... (old permalink format)
 	if strings.Contains(u.Path, "/permalink.php") {
 		return s.resolvePermalinkURL(fbURL)
 	}
 
-	// Format 5: /posts/... or /photos/...
 	if strings.Contains(u.Path, "/posts/") || strings.Contains(u.Path, "/photos/") {
 		return s.resolveShareURL(fbURL)
 	}
@@ -126,7 +121,6 @@ func (s *FacebookService) resolveShareURL(shareURL string) (string, error) {
 
 	htmlStr := string(body)
 
-	// Try multiple patterns to find fbid
 	patterns := []string{
 		`/photo\?fbid=(\d+)&amp;set=([^"]+)`,
 		`/photo/\?fbid=(\d+)&amp;set=([^"]+)`,
@@ -140,17 +134,14 @@ func (s *FacebookService) resolveShareURL(shareURL string) (string, error) {
 		matches := re.FindStringSubmatch(htmlStr)
 		if len(matches) >= 2 {
 			fbid := matches[1]
-			// If we also got the set parameter
 			if len(matches) >= 3 {
 				set := strings.ReplaceAll(matches[2], "&amp;", "&")
 				return fmt.Sprintf("https://www.facebook.com/photo?fbid=%s&set=%s", fbid, set), nil
 			}
-			// Just fbid
 			return fmt.Sprintf("https://www.facebook.com/photo?fbid=%s", fbid), nil
 		}
 	}
 
-	// If we can't find fbid, return original URL (will be used directly)
 	return shareURL, nil
 }
 
@@ -183,27 +174,21 @@ func (s *FacebookService) resolvePermalinkURL(permalinkURL string) (string, erro
 
 	htmlStr := string(body)
 
-	// Find the actual photo link in the HTML
-	// Pattern: <a href="https://www.facebook.com/photo/?fbid=...&set=...
-	// Use simpler pattern to match any photo URL
 	photoLinkRe := regexp.MustCompile(`href="(https://www\.facebook\.com/photo/[^"]+)"`)
 	matches := photoLinkRe.FindStringSubmatch(htmlStr)
 	if len(matches) >= 2 {
 		photoURL := strings.ReplaceAll(matches[1], "&amp;", "&")
-		// Clean up tracking parameters
 		if strings.Contains(photoURL, "&__cft__") {
 			photoURL = strings.Split(photoURL, "&__cft__")[0]
 		}
 		if strings.Contains(photoURL, "&__tn__") {
 			photoURL = strings.Split(photoURL, "&__tn__")[0]
 		}
-		// Make sure it has fbid parameter
 		if strings.Contains(photoURL, "fbid=") {
 			return photoURL, nil
 		}
 	}
 
-	// Fallback: Try to find fbid in HTML
 	patterns := []string{
 		`"fbid":"(\d+)"`,
 		`/photo\?fbid=(\d+)`,
@@ -220,7 +205,6 @@ func (s *FacebookService) resolvePermalinkURL(permalinkURL string) (string, erro
 		}
 	}
 
-	// If we can't find anything, return original URL
 	return permalinkURL, nil
 }
 
@@ -230,13 +214,11 @@ func (s *FacebookService) GetPhotoURLs(fbURL string) ([]string, error) {
 		return nil, fmt.Errorf("failed to normalize URL: %w", err)
 	}
 
-	// Try normalized URL first
 	photos, err := s.extractPhotosFromURL(normalizedURL)
 	if err == nil && len(photos) > 0 {
 		return photos, nil
 	}
 
-	// If normalized URL fails and it's different from original, try original URL
 	if normalizedURL != fbURL {
 		photos, err = s.extractPhotosFromURL(fbURL)
 		if err == nil && len(photos) > 0 {
@@ -277,22 +259,17 @@ func (s *FacebookService) extractPhotosFromURL(targetURL string) ([]string, erro
 	htmlStr := string(body)
 	var photos []string
 
-	// Pattern 1: og:image meta tag (usually highest quality and always the main content image)
 	ogRe := regexp.MustCompile(`<meta property="og:image" content="([^"]+)"`)
 	ogMatches := ogRe.FindAllStringSubmatch(htmlStr, -1)
 	for _, match := range ogMatches {
 		if len(match) > 1 {
 			imgURL := match[1]
-			// Decode HTML entities
 			imgURL = strings.ReplaceAll(imgURL, "&amp;", "&")
 			imgURL = strings.ReplaceAll(imgURL, "&#xff08;", "(")
 			imgURL = strings.ReplaceAll(imgURL, "&#xff09;", ")")
 			imgURL = strings.ReplaceAll(imgURL, "&#x", "")
 			
-			// og:image is special - it's almost always the main post content, not profile
-			// Check if it's a valid photo URL
 			if strings.Contains(imgURL, "scontent") && strings.Contains(imgURL, "fbcdn.net") {
-				// Exclude only obvious profile picture patterns
 				if !strings.Contains(imgURL, "/t1.30497-1/") && 
 				   !strings.Contains(imgURL, "/t1.0-1/") &&
 				   !strings.Contains(imgURL, "p160x160") && 
@@ -305,8 +282,6 @@ func (s *FacebookService) extractPhotosFromURL(targetURL string) ([]string, erro
 		}
 	}
 
-	// Pattern 2: scontent URLs in any attribute
-	// More flexible pattern to catch URLs in various attributes
 	scontentRe := regexp.MustCompile(`(https://scontent[^"\s]+fbcdn\.net[^"\s]+\.jpg[^"\s]*)`)
 	scontentMatches := scontentRe.FindAllStringSubmatch(htmlStr, -1)
 	for _, match := range scontentMatches {
@@ -315,8 +290,7 @@ func (s *FacebookService) extractPhotosFromURL(targetURL string) ([]string, erro
 			// Decode HTML entities
 			imgURL = strings.ReplaceAll(imgURL, "&amp;", "&")
 			imgURL = strings.ReplaceAll(imgURL, "&#", "")
-			
-			// Only add if it's a post photo (not profile picture)
+
 			if isPostPhoto(imgURL) {
 				if !utils.Contains(photos, imgURL) {
 					photos = append(photos, imgURL)
@@ -325,7 +299,6 @@ func (s *FacebookService) extractPhotosFromURL(targetURL string) ([]string, erro
 		}
 	}
 
-	// Pattern 3: JSON embedded image URLs
 	jsonImgRe := regexp.MustCompile(`"image":\{"uri":"(https:[^"]+)"`)
 	jsonMatches := jsonImgRe.FindAllStringSubmatch(htmlStr, -1)
 	for _, match := range jsonMatches {
@@ -341,7 +314,6 @@ func (s *FacebookService) extractPhotosFromURL(targetURL string) ([]string, erro
 		}
 	}
 
-	// Pattern 4: High res image URLs in data attributes
 	dataImgRe := regexp.MustCompile(`data-[^=]+-src="(https://scontent[^"]+)"`)
 	dataMatches := dataImgRe.FindAllStringSubmatch(htmlStr, -1)
 	for _, match := range dataMatches {
@@ -357,26 +329,20 @@ func (s *FacebookService) extractPhotosFromURL(targetURL string) ([]string, erro
 		return nil, fmt.Errorf("no photos found in URL: %s", targetURL)
 	}
 
-	// Deduplicate by image ID (extract filename from URL)
-	uniquePhotos := make(map[string]string) // map[imageID]fullURL
+	uniquePhotos := make(map[string]string) 
 	for _, photo := range photos {
-		// Extract image ID from URL (the number before _n.jpg or similar)
 		parts := strings.Split(photo, "/")
 		if len(parts) > 0 {
 			filename := parts[len(parts)-1]
-			// Get the ID part (before .jpg)
 			imageID := strings.Split(filename, ".jpg")[0]
-			// Remove query parameters for comparison
 			imageID = strings.Split(imageID, "?")[0]
 			
-			// Only keep the longest URL for each image ID (has more parameters = better quality)
 			if existing, ok := uniquePhotos[imageID]; !ok || len(photo) > len(existing) {
 				uniquePhotos[imageID] = photo
 			}
 		}
 	}
 
-	// Convert back to slice
 	dedupedPhotos := make([]string, 0, len(uniquePhotos))
 	for _, photoURL := range uniquePhotos {
 		dedupedPhotos = append(dedupedPhotos, photoURL)
@@ -385,14 +351,11 @@ func (s *FacebookService) extractPhotosFromURL(targetURL string) ([]string, erro
 	return dedupedPhotos, nil
 }
 
-// isPostPhoto checks if URL is a post photo (not profile picture or other small images)
 func isPostPhoto(imgURL string) bool {
-	// Must contain scontent
 	if !strings.Contains(imgURL, "scontent") {
 		return false
 	}
-	
-	// Exclude profile pictures and thumbnails by size
+
 	excludeSizes := []string{
 		"p160x160", "p130x130", "s160x160", "s320x320",
 		"p50x50", "p75x75", "p100x100", "p120x120",
@@ -404,11 +367,6 @@ func isPostPhoto(imgURL string) bool {
 		}
 	}
 	
-	// Exclude profile pictures by path pattern
-	// Profile pictures have these identifiers:
-	// /t1.30497-1/ = Facebook profile picture
-	// /t1.0-1/ = Old profile picture format
-	// /t39.30808-1/ = Could be profile picture (ends with -1)
 	excludePatterns := []string{
 		"/t1.30497-1/",
 		"/t1.0-1/",
@@ -419,14 +377,12 @@ func isPostPhoto(imgURL string) bool {
 			return false
 		}
 	}
-	
-	// ONLY accept specific post photo patterns
-	// Post photos have specific type indicators:
+
 	postPatterns := []string{
-		"/t39.30808-6/",  // Standard post photos
-		"/t51.2885-",     // High resolution photos
-		"/t39.30808-15/", // Large post photos
-		"/t39.30808-12/", // Medium post photos
+		"/t39.30808-6/",  
+		"/t51.2885-",     
+		"/t39.30808-15/",
+		"/t39.30808-12/", 
 	}
 	for _, pattern := range postPatterns {
 		if strings.Contains(imgURL, pattern) {
@@ -434,25 +390,19 @@ func isPostPhoto(imgURL string) bool {
 		}
 	}
 	
-	// If URL has stp parameter (photo processing parameter), check if it's a post
-	// Common post indicators: stp=dst-jpg, stp=c* (crop parameters)
 	if strings.Contains(imgURL, "stp=") {
-		// Check if it's NOT a profile picture path
 		if !strings.Contains(imgURL, "/t39.30808-1/") && 
 		   !strings.Contains(imgURL, "/t1.") {
-			// If it has dst-jpg or crop parameters, it's likely a post
 			if strings.Contains(imgURL, "dst-jpg") || strings.Contains(imgURL, "stp=c") {
 				return true
 			}
 		}
 	}
 	
-	// Fallback: If it's t39.30808 (post photo type) and NOT -1 (profile), accept it
 	if strings.Contains(imgURL, "/t39.30808-") && !strings.Contains(imgURL, "/t39.30808-1/") {
 		return true
 	}
-	
-	// Reject everything else to be safe
+
 	return false
 }
 

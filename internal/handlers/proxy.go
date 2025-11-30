@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -52,8 +54,18 @@ func ImageProxy(c *fiber.Ctx) error {
 		))
 	}
 
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("[Proxy] Failed to read image body: %v", err)
+		return c.Status(fiber.StatusBadGateway).JSON(models.NewErrorResponse(
+			"Failed to read image",
+			err,
+		))
+	}
+
 	c.Set("Content-Type", resp.Header.Get("Content-Type"))
 	c.Set("Cache-Control", "public, max-age=86400")
+	c.Set("Content-Length", strconv.Itoa(len(body)))
 
-	return c.SendStream(resp.Body)
+	return c.Send(body)
 }

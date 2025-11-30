@@ -8,8 +8,10 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/server/
 
 
+# ============= RUNTIME (MULTI-ARCH) =============
 FROM debian:bookworm-slim
 
+# Install common deps
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     wget \
@@ -37,24 +39,39 @@ RUN apt-get update && apt-get install -y \
     libxshmfence1 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
-    && apt-get update \
-    && apt-get install -y ./google-chrome-stable_current_amd64.deb \
-    && rm google-chrome-stable_current_amd64.deb \
-    && rm -rf /var/lib/apt/lists/*
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "amd64" ]; then \
+        echo ">>> Installing Google Chrome for AMD64"; \
+        wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+        apt-get update && apt-get install -y ./google-chrome-stable_current_amd64.deb && \
+        rm google-chrome-stable_current_amd64.deb; \
+    else \
+        echo ">>> Installing Chromium for ARM64"; \
+        apt-get update && apt-get install -y chromium chromium-common chromium-driver; \
+    fi && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN google-chrome --version
+RUN echo "ARCH: $(dpkg --print-architecture)" && \
+    (which google-chrome || which chromium || true)
 
 WORKDIR /app
 COPY --from=builder /app/server .
+
 RUN mkdir -p /app/cookies && chmod -R 755 /app
-ENV CHROME_BIN=/usr/bin/google-chrome \
-    CHROME_PATH=/usr/bin/google-chrome \
-    PORT=3005 \
+
+ENV CHROME_BIN="/usr/bin/google-chrome" \
+    CHROME_PATH="/usr/bin/google-chrome" \
     ENV=production
 
-RUN useradd -m -u 1000 appuser \
-    && chown -R appuser:appuser /app
+RUN if [ -f "/usr/bin/chromium" ]; then \
+      sed -i 's/google-chrome/chromium/g' /etc/environment || true; \
+      echo 'CHROME_BIN=/usr/bin/chromium' >> /etc/environment; \
+      echo 'CHROME_PATH=/usr/bin/chromium' >> /etc/environment; \
+    fi
+
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+
 USER appuser
 
 CMD ["./server"]

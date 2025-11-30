@@ -53,3 +53,6 @@ Thumbs.db
 *.coverprofile
 coverage.out
 coverage.html
+
+server
+./server

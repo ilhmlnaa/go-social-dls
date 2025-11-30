@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type CookieItem struct {
@@ -34,7 +35,19 @@ func LoadCookiesFromFile(filename string) (map[string]string, error) {
 
 	cookies := make(map[string]string)
 	for _, item := range cookieItems {
-		cookies[item.Name] = item.Value
+		// Clean cookie value - remove surrounding quotes and escape characters
+		// This fixes "net/http: invalid byte" errors
+		value := item.Value
+		
+		// Remove surrounding quotes
+		if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
+			value = value[1 : len(value)-1]
+		}
+		
+		// Remove backslashes (escape characters)
+		value = strings.ReplaceAll(value, `\`, "")
+		
+		cookies[item.Name] = value
 	}
 
 	return cookies, nil

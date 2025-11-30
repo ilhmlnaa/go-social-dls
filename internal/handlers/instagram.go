@@ -34,7 +34,7 @@ func InstagramDownload(c *fiber.Ctx) error {
 		))
 	}
 
-	// Try GraphQL API first
+	// Try GraphQL API
 	images, err := igSvc.GetPostImages(urlIG)
 	if err != nil {
 		log.Printf("[Instagram] GraphQL method failed, trying HTML fallback: %v", err)

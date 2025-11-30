@@ -1,0 +1,50 @@
+	html := string(body)
+	var images []string
+
+	// Find ALL Instagram CDN URLs with ALL query parameters intact
+	// Pattern matches complete URLs: https://scontent...jpg?stp=...&_nc_cat=...&oh=...&oe=...
+	urlPattern := `(https://scontent[^"\s]+cdninstagram\.com[^"\s]+\.jpg\?[^"\s]+)`
+	urlRe := regexp.MustCompile(urlPattern)
+	allURLs := urlRe.FindAllString(html, -1)
+	
+	// Decode and filter URLs
+	var candidateURLs []string
+	for _, rawURL := range allURLs {
+		// Decode HTML entities
+		cleanURL := strings.ReplaceAll(rawURL, "&amp;", "&")
+		cleanURL = strings.ReplaceAll(cleanURL, `\u0026`, "&")
+		cleanURL = strings.TrimSuffix(cleanURL, `"`)
+		cleanURL = strings.TrimSuffix(cleanURL, `'`)
+		
+		// Skip small thumbnails
+		if strings.Contains(cleanURL, "s150x150") || 
+		   strings.Contains(cleanURL, "s320x320") {
+			continue
+		}
+		
+		candidateURLs = append(candidateURLs, cleanURL)
+	}
+	
+	// Find URL with MOST query parameters (most complete & validated)
+	var bestURL string
+	maxParams := 0
+	for _, url := range candidateURLs {
+		paramCount := strings.Count(url, "&")
+		if paramCount > maxParams {
+			maxParams = paramCount
+			bestURL = url
+		}
+	}
+	
+	if bestURL != "" {
+		// Convert to full resolution by modifying stp parameter only
+		fullResURL := getFullResolutionURL(bestURL)
+		images = append(images, fullResURL)
+		return images, nil
+	}
+
+	if len(images) == 0 {
+		return nil, fmt.Errorf("no images found in Instagram post")
+	}
+
+	return images, nil

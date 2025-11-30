@@ -127,6 +127,23 @@ GET /api/v1/instagram?url={instagram_url}
 curl "http://localhost:3005/api/v1/instagram?url=https://www.instagram.com/p/ABC123/"
 ```
 
+**⚠️ Important for Instagram:**
+- API returns complete image URL with all validation parameters
+- URLs must be downloaded **client-side** (in user's browser) where they have an active Instagram session
+- URLs contain cryptographic signatures (`oh`, `oe`) that are session-bound and cannot work from server
+- See [INSTAGRAM_USAGE.md](./INSTAGRAM_USAGE.md) for detailed client-side implementation guide
+
+**Quick Client-Side Example:**
+```javascript
+// User must be logged in to Instagram in their browser
+const response = await fetch('/api/v1/instagram?url=...');
+const data = await response.json();
+const imageURL = data.data[0];
+
+// Open in new tab - browser will handle with user's session
+window.open(imageURL, '_blank');
+```
+
 #### Pinterest
 
 ```bash

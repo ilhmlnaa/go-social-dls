@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -12,13 +13,11 @@ import (
 	"twitter-down/internal/utils"
 )
 
-// InstagramService handles Instagram API operations
 type InstagramService struct {
 	client  *http.Client
 	cookies map[string]string
 }
 
-// InstagramGraphQLResponse represents Instagram GraphQL response
 type InstagramGraphQLResponse struct {
 	Data struct {
 		ShortcodeMedia struct {
@@ -48,15 +47,12 @@ type InstagramGraphQLResponse struct {
 	} `json:"data"`
 }
 
-// NewInstagramService creates a new Instagram service instance
 func NewInstagramService(cookiesDir string) (*InstagramService, error) {
-	// Load cookies
 	cookies, err := utils.LoadCookies(cookiesDir, "instagram")
 	if err != nil {
 		return nil, err
 	}
 
-	// Validate required cookies (sessionid is the main one for Instagram)
 	required := []string{"sessionid"}
 	if err := utils.ValidateCookies(cookies, required); err != nil {
 		return nil, err
@@ -211,10 +207,224 @@ func (s *InstagramService) GetPostImagesHTML(postURL string) ([]string, error) {
 	html := string(body)
 	var images []string
 
-	// Try to extract from og:image meta tag
-	ogImageRe := regexp.MustCompile(`<meta property="og:image" content="([^"]+)"`)
-	if matches := ogImageRe.FindStringSubmatch(html); len(matches) > 1 {
-		images = append(images, matches[1])
+	// Strategy: Find URLs that Instagram provides WITHOUT size limitations
+	// Don't modify any URLs - they are signed and will break if modified
+	
+	// First, decode common HTML entities
+	html = strings.ReplaceAll(html, "&amp;", "&")
+	html = strings.ReplaceAll(html, `\u0026`, "&")
+	
+	// DEBUG: Save HTML to file to inspect
+	// os.WriteFile("/tmp/instagram_debug.html", []byte(html), 0644)
+	// log.Printf("[Instagram] HTML saved to /tmp/instagram_debug.html for debugging")
+	
+	// Try to extract data from embedded JSON in <script> tags
+	// Instagram embeds data in window._sharedData or similar
+	scriptRe := regexp.MustCompile(`<script[^>]*>window\._sharedData\s*=\s*(\{.+?\});</script>`)
+	scriptMatches := scriptRe.FindStringSubmatch(html)
+	
+	if len(scriptMatches) > 1 {
+		log.Printf("[Instagram] Found _sharedData JSON, parsing...")
+		var sharedData map[string]interface{}
+		if err := json.Unmarshal([]byte(scriptMatches[1]), &sharedData); err == nil {
+			// Navigate through the JSON structure to find image URLs
+			if entryData, ok := sharedData["entry_data"].(map[string]interface{}); ok {
+				if postPage, ok := entryData["PostPage"].([]interface{}); ok && len(postPage) > 0 {
+					if firstPost, ok := postPage[0].(map[string]interface{}); ok {
+						if graphql, ok := firstPost["graphql"].(map[string]interface{}); ok {
+							if shortcodeMedia, ok := graphql["shortcode_media"].(map[string]interface{}); ok {
+								// Try to get display_url
+								if displayURL, ok := shortcodeMedia["display_url"].(string); ok {
+									log.Printf("[Instagram] ✓ Found display_url from _sharedData!")
+									images = append(images, displayURL)
+									return images, nil
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	// Alternative: Try to extract from __additionalDataLoaded or other script tags
+	scriptRe2 := regexp.MustCompile(`<script[^>]*type="application/ld\+json"[^>]*>(.+?)</script>`)
+	ldJsonMatches := scriptRe2.FindAllStringSubmatch(html, -1)
+	
+	for _, match := range ldJsonMatches {
+		if len(match) > 1 {
+			var ldData map[string]interface{}
+			if err := json.Unmarshal([]byte(match[1]), &ldData); err == nil {
+				if imageVal, ok := ldData["image"].(string); ok {
+					log.Printf("[Instagram] ✓ Found image from LD+JSON!")
+					images = append(images, imageVal)
+					return images, nil
+				}
+			}
+		}
+	}
+	
+	log.Printf("[Instagram] No JSON data found, trying URL extraction...")
+	
+	// Look for URLs with ig_cache_key FIRST (these are the full resolution ones)
+	// The key is to match URLs that may be in different contexts (attributes, JSON, etc)
+	
+	// Try to find ig_cache_key URLs with more flexible pattern
+	igCacheKeyPattern := `https://scontent[^"'\s]*\.cdninstagram\.com[^"'\s]*\.jpg\?[^"'\s]*ig_cache_key=[^"'\s&]*[^"'\s]*`
+	igRe := regexp.MustCompile(igCacheKeyPattern)
+	igURLs := igRe.FindAllString(html, -1)
+	
+	log.Printf("[Instagram] Found %d URLs with ig_cache_key", len(igURLs))
+	
+	if len(igURLs) > 0 {
+		for i, u := range igURLs {
+			cleanURL := strings.ReplaceAll(u, `\"`, "")
+			cleanURL = strings.ReplaceAll(cleanURL, `\\`, "")
+			
+			if i < 3 {
+				urlPreview := cleanURL
+				if len(urlPreview) > 150 {
+					urlPreview = urlPreview[:150] + "..."
+				}
+				log.Printf("[Instagram] ig_cache_key URL #%d: %s", i+1, urlPreview)
+			}
+			
+			// Return first one that doesn't have size limitation
+			if !strings.Contains(cleanURL, "s150x150") &&
+			   !strings.Contains(cleanURL, "s320x320") &&
+			   !strings.Contains(cleanURL, "s640x640") &&
+			   !strings.Contains(cleanURL, "s1080x1080") {
+				log.Printf("[Instagram] ✓ Found full resolution URL with ig_cache_key!")
+				images = append(images, cleanURL)
+				return images, nil
+			}
+		}
+	}
+	
+	// Look for ALL Instagram CDN URLs (not just ig_cache_key)
+	urlPattern := `https://scontent[^"'\s<>\\]*\.cdninstagram\.com[^"'\s<>\\]*\.jpg\?[^"'\s<>\\]+`
+	urlRe := regexp.MustCompile(urlPattern)
+	allURLs := urlRe.FindAllString(html, -1)
+	
+	log.Printf("[Instagram] Found %d total Instagram CDN URLs", len(allURLs))
+	
+	if len(allURLs) > 0 {
+		// Analyze all URLs
+		type urlInfo struct {
+			url        string
+			paramCount int
+			length     int
+			hasSize    bool
+			sizeTag    string
+		}
+		
+		var urlList []urlInfo
+		
+		for i, url := range allURLs {
+			// Clean up escape characters
+			cleanURL := strings.ReplaceAll(url, `\"`, "")
+			cleanURL = strings.ReplaceAll(cleanURL, `\\`, "")
+			
+			// Count parameters
+			paramCount := strings.Count(cleanURL, "&") + strings.Count(cleanURL, "=")
+			
+			// Check for size limitations
+			sizeTag := ""
+			hasSize := false
+			if strings.Contains(cleanURL, "s150x150") {
+				hasSize = true
+				sizeTag = "s150x150"
+			} else if strings.Contains(cleanURL, "s320x320") {
+				hasSize = true
+				sizeTag = "s320x320"
+			} else if strings.Contains(cleanURL, "s640x640") {
+				hasSize = true
+				sizeTag = "s640x640"
+			} else if strings.Contains(cleanURL, "s1080x1080") {
+				hasSize = true
+				sizeTag = "s1080x1080"
+			}
+			
+			info := urlInfo{
+				url:        cleanURL,
+				paramCount: paramCount,
+				length:     len(cleanURL),
+				hasSize:    hasSize,
+				sizeTag:    sizeTag,
+			}
+			urlList = append(urlList, info)
+			
+			// Log first 5 URLs for debugging
+			if i < 5 {
+				urlPreview := cleanURL
+				if len(urlPreview) > 150 {
+					urlPreview = urlPreview[:150] + "..."
+				}
+				log.Printf("[Instagram] URL #%d: len=%d, params=%d, hasSize=%v(%s)", 
+					i+1, info.length, info.paramCount, info.hasSize, info.sizeTag)
+				log.Printf("[Instagram]   -> %s", urlPreview)
+			}
+		}
+		
+		// Find best URL: prioritize non-size-limited URLs
+		var bestURL string
+		bestScore := -1
+		bestIdx := -1
+		
+		for idx, info := range urlList {
+			// Score: strongly prefer URLs without size limitation
+			score := 0
+			if !info.hasSize {
+				score += 10000 // Strongly prefer non-size-limited URLs
+			}
+			score += info.paramCount * 10
+			score += info.length / 10
+			
+			if score > bestScore {
+				bestScore = score
+				bestURL = info.url
+				bestIdx = idx
+			}
+		}
+		
+		if bestURL != "" {
+			log.Printf("[Instagram] ✓ Selected URL #%d (score=%d, len=%d, hasSize=%v)", 
+				bestIdx+1, bestScore, len(bestURL), urlList[bestIdx].hasSize)
+			urlPreview := bestURL
+			if len(urlPreview) > 150 {
+				urlPreview = urlPreview[:150] + "..."
+			}
+			log.Printf("[Instagram] ✓ %s", urlPreview)
+			images = append(images, bestURL)
+			return images, nil
+		}
+	}
+	
+	log.Printf("[Instagram] No URLs found, trying other fallbacks...")
+	
+	// Try to extract high-res URLs from img tags
+	// Prefer URLs with dst-jpg_e35 or dst-jpg_e15 (full resolution)
+	highResRe := regexp.MustCompile(`src="(https://scontent[^"]+cdninstagram\.com[^"]+dst-jpg[^"]+)"`)
+	highResMatches := highResRe.FindAllStringSubmatch(html, -1)
+	for _, match := range highResMatches {
+		if len(match) > 1 {
+			imgURL := strings.ReplaceAll(match[1], "&amp;", "&")
+			// Skip if it's a thumbnail (has s150x150, s320x320, s640x640)
+			if !strings.Contains(imgURL, "s150x150") && 
+			   !strings.Contains(imgURL, "s320x320") && 
+			   !strings.Contains(imgURL, "s640x640") &&
+			   !utils.Contains(images, imgURL) {
+				images = append(images, imgURL)
+			}
+		}
+	}
+
+	// Fallback: extract from og:image meta tag (might be medium quality)
+	if len(images) == 0 {
+		ogImageRe := regexp.MustCompile(`<meta property="og:image" content="([^"]+)"`)
+		if matches := ogImageRe.FindStringSubmatch(html); len(matches) > 1 {
+			images = append(images, matches[1])
+		}
 	}
 
 	// Try to extract from JSON-LD
@@ -254,6 +464,16 @@ func (s *InstagramService) GetPostImagesHTML(postURL string) ([]string, error) {
 			if !utils.Contains(images, imgURL) {
 				images = append(images, imgURL)
 			}
+		}
+	}
+
+	// If no high-res images found, try display_url as-is
+	if len(images) == 0 {
+		// Try display_url from JSON
+		displayUrlRe := regexp.MustCompile(`"display_url":"([^"]+)"`)
+		if matches := displayUrlRe.FindStringSubmatch(html); len(matches) > 1 {
+			imgURL := strings.ReplaceAll(matches[1], `\u0026`, "&")
+			images = append(images, imgURL)
 		}
 	}
 

@@ -10,7 +10,7 @@ Built with **Go** and **Fiber framework** - Fast, reliable, and production-ready
 - ✅ **Fast** - Powered by Fiber framework (Express-like API)
 - ✅ **Twitter** - Download images from tweets (pure Go implementation)
 - ✅ **Facebook** - Download photos with URL normalization
-- ✅ **Instagram** - Extract images from posts
+- ✅ **Instagram** - Full resolution images via Chromedp headless browser
 - ✅ **Pinterest** - Get high-quality pin images
 - ✅ **Generic** - Download any image from URL
 - ✅ **Production Ready** - Proper error handling, logging, CORS support
@@ -41,7 +41,12 @@ go-social-dls/
 ### Prerequisites
 
 - **Go 1.20+**
-- **Browser** with Cookie-Editor extension (for Twitter/Facebook)
+- **Google Chrome** (for Instagram full resolution)
+  ```bash
+  wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+  sudo apt install ./google-chrome-stable_current_amd64.deb -y
+  ```
+- **Browser** with Cookie-Editor extension (for Twitter/Facebook/Instagram cookies)
 
 ### Installation
 
@@ -59,7 +64,7 @@ go build -o server ./cmd/server/
 
 Server will start on `http://localhost:3005`
 
-## 🍪 Setup Cookies (Required for Twitter/Facebook)
+## 🍪 Setup Cookies (Required for Twitter/Facebook/Instagram)
 
 ### Twitter Setup
 
@@ -73,6 +78,12 @@ Server will start on `http://localhost:3005`
 1. Login to Facebook in your browser
 2. Click Cookie-Editor → Export → JSON
 3. Save as `cookies/facebook.json`
+
+### Instagram Setup (Required for full resolution)
+
+1. Login to Instagram in your browser
+2. Click Cookie-Editor → Export → JSON
+3. Save as `cookies/instagram.json`
 
 **Important:** Add `cookies/*.json` to `.gitignore` to keep your cookies secure!
 
@@ -127,21 +138,24 @@ GET /api/v1/instagram?url={instagram_url}
 curl "http://localhost:3005/api/v1/instagram?url=https://www.instagram.com/p/ABC123/"
 ```
 
-**⚠️ Important for Instagram:**
-- API returns complete image URL with all validation parameters
-- URLs must be downloaded **client-side** (in user's browser) where they have an active Instagram session
-- URLs contain cryptographic signatures (`oh`, `oe`) that are session-bound and cannot work from server
-- See [INSTAGRAM_USAGE.md](./INSTAGRAM_USAGE.md) for detailed client-side implementation guide
+**✨ Full Resolution via Chromedp Headless Browser:**
+- Uses **Google Chrome** headless browser to render Instagram page
+- Extracts full resolution URLs from JavaScript-rendered content
+- Returns images with `ig_cache_key` parameter (full resolution indicator)
+- Supports carousel posts (multiple images)
+- Response time: ~3-5 seconds (slower due to browser rendering)
+- See [INSTAGRAM_HEADLESS_BROWSER_APPROACH.md](./INSTAGRAM_HEADLESS_BROWSER_APPROACH.md) for technical details
 
-**Quick Client-Side Example:**
-```javascript
-// User must be logged in to Instagram in their browser
-const response = await fetch('/api/v1/instagram?url=...');
-const data = await response.json();
-const imageURL = data.data[0];
-
-// Open in new tab - browser will handle with user's session
-window.open(imageURL, '_blank');
+**Response Example:**
+```json
+{
+  "success": true,
+  "message": "Successfully fetched 6 full resolution image(s)",
+  "data": [
+    "https://scontent.cdninstagram.com/v/...&ig_cache_key=...",
+    "..."
+  ]
+}
 ```
 
 #### Pinterest

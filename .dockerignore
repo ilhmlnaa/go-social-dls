@@ -1,3 +1,68 @@
-/dev
-dev
-./dev
+# Git
+.git
+.gitignore
+
+# Binaries
+server
+tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# Dependencies
+vendor/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Cookies (sensitive)
+cookies/*.json
+cookies/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation (optional - include if needed)
+*.md
+!README.md
+
+# Build artifacts
+bin/
+dist/
+
+# Test files
+*_test.go
+test_*.py
+ig-chromedp.go
+ig-pypeter.py
+ig-playwright.py
+test_instagram_playwright.py
+
+# Development tools config
+.air.toml
+reflex.conf

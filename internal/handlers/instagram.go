@@ -11,7 +11,6 @@ import (
 	"twitter-down/internal/services"
 )
 
-// InstagramDownload handles Instagram image download requests
 func InstagramDownload(c *fiber.Ctx) error {
 	urlIG := c.Query("url")
 	if urlIG == "" {
@@ -21,39 +20,31 @@ func InstagramDownload(c *fiber.Ctx) error {
 		))
 	}
 
-	// Load config
 	cfg := config.Load()
 
-	// Initialize Instagram service
-	igSvc, err := services.NewInstagramService(cfg.CookiesDir)
+	log.Printf("[Instagram] Initializing browser service for: %s", urlIG)
+	igSvc, err := services.NewInstagramBrowserService(cfg.CookiesDir)
 	if err != nil {
-		log.Printf("[Instagram] Failed to initialize service: %v", err)
+		log.Printf("[Instagram] Failed to initialize browser service: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewErrorResponse(
 			"Failed to initialize Instagram service. Make sure cookies are configured.",
 			err,
 		))
 	}
 
-	// Try GraphQL API
 	images, err := igSvc.GetPostImages(urlIG)
 	if err != nil {
-		log.Printf("[Instagram] GraphQL method failed, trying HTML fallback: %v", err)
-		
-		// Fallback to HTML parsing
-		images, err = igSvc.GetPostImagesHTML(urlIG)
-		if err != nil {
-			log.Printf("[Instagram] HTML fallback also failed: %v", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(models.NewErrorResponse(
-				"Failed to fetch Instagram images",
-				err,
-			))
-		}
+		log.Printf("[Instagram] Browser extraction failed: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewErrorResponse(
+			"Failed to fetch Instagram images using browser",
+			err,
+		))
 	}
 
-	log.Printf("[Instagram] Successfully fetched %d image(s)", len(images))
+	log.Printf("[Instagram] Successfully fetched %d full resolution image(s)", len(images))
 
 	return c.JSON(models.NewSuccessResponse(
-		fmt.Sprintf("Successfully fetched %d image(s)", len(images)),
+		fmt.Sprintf("Successfully fetched %d full resolution image(s)", len(images)),
 		images,
 	))
 }

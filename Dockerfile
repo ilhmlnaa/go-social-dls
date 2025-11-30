@@ -13,7 +13,6 @@ FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Detect architecture: amd64 or arm64
 RUN ARCH=$(dpkg --print-architecture) && \
     echo "Building for architecture: $ARCH" && \
     apt-get update && apt-get install -y ca-certificates wget gnupg --no-install-recommends && \
@@ -57,7 +56,6 @@ ENV CHROME_BIN=/usr/bin/google-chrome \
 WORKDIR /app
 COPY --from=builder /app/server .
 
-# Non-root
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 

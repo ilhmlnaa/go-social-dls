@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"os"
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
@@ -126,7 +127,8 @@ func (s *InstagramBrowserService) GetPostImages(postURL string) ([]string, error
 	log.Printf("[Instagram Browser] Loaded %d cookies", len(cookieList))
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.ExecPath("/usr/bin/google-chrome"),
+		// chromedp.ExecPath("/usr/bin/google-chrome"),
+		chromedp.ExecPath(os.Getenv("CHROME_BIN")),
 		chromedp.NoSandbox,
 		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", true),

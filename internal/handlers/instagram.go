@@ -57,8 +57,8 @@ func InstagramDownload(c *fiber.Ctx) error {
 	return c.JSON(models.NewSuccessResponse(
 		message,
 		map[string]interface{}{
-			"count":  len(proxiedImages),
-			"images": proxiedImages,
+			"count":  len(images),
+			"images": images,
 			"source": "instagram",
 			"mode":   map[bool]string{true: "all", false: "top3"}[all],
 		},

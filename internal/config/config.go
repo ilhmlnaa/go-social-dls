@@ -12,23 +12,21 @@ type Config struct {
 	Environment    string
 	CookiesDir     string
 	AllowedOrigins []string
+	BaseURL        string
 }
 
-// Load loads configuration from environment variables
 func Load() *Config {
-	// Load .env file if exists (ignore error in production)
 	_ = godotenv.Load()
 
 	port := getEnv("PORT", "3005")
 	env := getEnv("ENV", "development")
 	cookiesDir := getEnv("COOKIES_DIR", "cookies")
+	baseURL := getEnv("BASE_URL", "http://localhost:3005")
 
-	// Parse allowed origins from env (comma-separated)
 	allowedOriginsStr := os.Getenv("ALLOWED_ORIGINS")
 	var allowedOrigins []string
 	
 	if allowedOriginsStr != "" {
-		// Split by comma and trim spaces
 		origins := strings.Split(allowedOriginsStr, ",")
 		for _, origin := range origins {
 			trimmed := strings.TrimSpace(origin)
@@ -38,10 +36,8 @@ func Load() *Config {
 		}
 	}
 	
-	// Default allowed origins for development
 	if len(allowedOrigins) == 0 {
 		if env == "development" {
-			// In development, allow localhost variants
 			allowedOrigins = []string{
 				"http://localhost:3000",
 				"http://localhost:3001",
@@ -49,7 +45,6 @@ func Load() *Config {
 				"http://127.0.0.1:3000",
 			}
 		} else {
-			// In production, require explicit configuration
 			allowedOrigins = []string{}
 		}
 	}
@@ -59,10 +54,10 @@ func Load() *Config {
 		Environment:    env,
 		CookiesDir:     cookiesDir,
 		AllowedOrigins: allowedOrigins,
+		BaseURL:        baseURL,
 	}
 }
 
-// getEnv gets environment variable with fallback to default value
 func getEnv(key, defaultVal string) string {
 	if val := os.Getenv(key); val != "" {
 		return val

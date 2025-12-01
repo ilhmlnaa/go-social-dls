@@ -48,7 +48,8 @@ func PixivDownload(c *fiber.Ctx) error {
 
 	var proxyImages []string
 	for _, imageURL := range images {
-		proxyURL := fmt.Sprintf("/api/v1/proxy/image?url=%s&referer=%s", 
+		proxyURL := fmt.Sprintf("%s/api/v1/proxy/image?url=%s&referer=%s", 
+			cfg.BaseURL,
 			imageURL, 
 			"https://www.pixiv.net/")
 		proxyImages = append(proxyImages, proxyURL)

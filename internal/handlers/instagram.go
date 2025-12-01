@@ -45,7 +45,7 @@ func InstagramDownload(c *fiber.Ctx) error {
 
 	proxiedImages := make([]string, len(images))
 	for i, imgURL := range images {
-		proxiedImages[i] = fmt.Sprintf("/api/v1/proxy/image?imageUrl=%s", imgURL)
+		proxiedImages[i] = fmt.Sprintf("%s/api/v1/proxy/image?imageUrl=%s", cfg.BaseURL, imgURL)
 	}
 
 	return c.JSON(models.NewSuccessResponse(

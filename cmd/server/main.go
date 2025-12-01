@@ -12,6 +12,7 @@ import (
 	"twitter-down/internal/config"
 	"twitter-down/internal/handlers"
 	"twitter-down/internal/middleware"
+	"twitter-down/internal/models"
 )
 
 func main() {
@@ -32,6 +33,15 @@ func main() {
 	}))
 
 	setupRoutes(app)
+	
+	app.Use(func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusNotFound).JSON(
+			models.NewErrorResponse(
+				"Endpoint not found",
+				fiber.NewError(fiber.StatusNotFound, "The requested endpoint does not exist"),
+			),
+		)
+	})
 
 	log.Printf("🚀 Server starting on port %s", cfg.Port)
 	log.Printf("📁 Cookies directory: %s", cfg.CookiesDir)
@@ -63,4 +73,27 @@ func setupRoutes(app *fiber.App) {
 	api.Get("/resolve/pinterest", handlers.ResolvePinterestUrl)
 
 	app.Static("/static", "./static")
+}
+
+// isKnownPath checks if the given path is a registered endpoint
+func isKnownPath(path string) bool {
+	knownPaths := []string{
+		"/",
+		"/health",
+		"/api/v1/twitter",
+		"/api/v1/facebook",
+		"/api/v1/pinterest",
+		"/api/v1/instagram",
+		"/api/v1/pixiv",
+		"/api/v1/generic",
+		"/api/v1/proxy/image",
+		"/api/v1/resolve/pinterest",
+	}
+	
+	for _, knownPath := range knownPaths {
+		if path == knownPath {
+			return true
+		}
+	}
+	return false
 }

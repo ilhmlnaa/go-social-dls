@@ -205,23 +205,19 @@ func (s *PixivService) GetIllustrationImages(illustURL string) ([]string, error)
 
 	var imageURLs []string
 
-	// Jika hanya satu gambar
 	if illustData.PageCount == 1 {
-		// Gunakan URL original jika tersedia, jika tidak gunakan regular
 		if illustData.Urls.Original != "" {
 			imageURLs = append(imageURLs, illustData.Urls.Original)
 		} else {
 			imageURLs = append(imageURLs, illustData.Urls.Regular)
 		}
 	} else {
-		// Jika multiple pages, dapatkan semua pages
 		pages, err := s.GetMultiplePages(illustID)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, page := range pages {
-			// Gunakan URL original jika tersedia, jika tidak gunakan regular
 			if page.Urls.Original != "" {
 				imageURLs = append(imageURLs, page.Urls.Original)
 			} else {
@@ -234,21 +230,14 @@ func (s *PixivService) GetIllustrationImages(illustURL string) ([]string, error)
 }
 
 func (s *PixivService) ConvertToOriginalURL(url string) string {
-	// Konversi URL master1200 ke original
-	// Dari: https://i.pximg.net/img-master/img/2025/08/13/09/54/51/133824298_p0_master1200.jpg
-	// Ke: https://i.pximg.net/img-original/img/2025/08/13/09/54/51/133824298_p0.jpg atau .png
-
 	if strings.Contains(url, "img-master") && strings.Contains(url, "_master1200") {
-		// Coba dengan ekstensi jpg terlebih dahulu
 		originalURL := strings.Replace(url, "img-master", "img-original", 1)
 		originalURL = strings.Replace(originalURL, "_master1200", "", 1)
 		
-		// Test apakah URL jpg tersedia
 		if s.testImageURL(originalURL) {
 			return originalURL
 		}
 		
-		// Jika jpg tidak tersedia, coba png
 		if strings.HasSuffix(originalURL, ".jpg") {
 			pngURL := strings.Replace(originalURL, ".jpg", ".png", 1)
 			if s.testImageURL(pngURL) {
@@ -269,7 +258,6 @@ func (s *PixivService) testImageURL(url string) bool {
 	req.Header.Set("Referer", "https://www.pixiv.net/")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
-	// Tambahkan cookies untuk akses gambar original
 	for name, value := range s.cookies {
 		req.AddCookie(&http.Cookie{
 			Name:  name,

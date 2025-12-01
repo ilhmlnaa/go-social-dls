@@ -2,72 +2,42 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
-	"os"
 
-	"github.com/chromedp/cdproto/cdp"
-	"github.com/chromedp/cdproto/network"
-	"github.com/chromedp/chromedp"
 	"twitter-down/internal/utils"
 )
 
-type InstagramBrowserService struct {
+type InstagramHTTPService struct {
 	cookiesDir string
 	cookies    map[string]string
+	client     *http.Client
 }
 
-func NewInstagramBrowserService(cookiesDir string) (*InstagramBrowserService, error) {
+func NewInstagramHTTPService(cookiesDir string) (*InstagramHTTPService, error) {
 	cookies, err := utils.LoadCookies(cookiesDir, "instagram")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load Instagram cookies: %w", err)
 	}
 
-	return &InstagramBrowserService{
+	cl := &http.Client{
+		Timeout: 20 * time.Second,
+	}
+
+	return &InstagramHTTPService{
 		cookiesDir: cookiesDir,
 		cookies:    cookies,
+		client:     cl,
 	}, nil
-}
-
-type cookieJSON struct {
-	Name     string      `json:"name"`
-	Value    string      `json:"value"`
-	Domain   string      `json:"domain"`
-	Path     string      `json:"path"`
-	Expires  interface{} `json:"expirationDate"`
-	SameSite string      `json:"sameSite"`
-	Secure   bool        `json:"secure"`
-	HTTPOnly bool        `json:"httpOnly"`
-}
-
-func parseExpires(v interface{}) *cdp.TimeSinceEpoch {
-	if v == nil {
-		return nil
-	}
-
-	switch t := v.(type) {
-	case float64:
-		sec := int64(t)
-		exp := cdp.TimeSinceEpoch(time.Unix(sec, 0))
-		return &exp
-
-	case string:
-		if secInt, err := strconv.ParseInt(t, 10, 64); err == nil {
-			exp := cdp.TimeSinceEpoch(time.Unix(secInt, 0))
-			return &exp
-		}
-		if tm, err := time.Parse(time.RFC3339, t); err == nil {
-			exp := cdp.TimeSinceEpoch(tm)
-			return &exp
-		}
-	}
-
-	return nil
 }
 
 func contentKey(raw string) string {
@@ -76,13 +46,22 @@ func contentKey(raw string) string {
 		return raw
 	}
 
-	if q := u.Query().Get("ig_cache_key"); q != "" {
-		return q
+	cacheKey := u.Query().Get("ig_cache_key")
+	stp := u.Query().Get("stp")
+	
+	if cacheKey != "" {
+		if stp != "" {
+			return cacheKey + "|" + stp
+		}
+		return cacheKey
 	}
 
 	parts := strings.Split(u.Path, "/")
 	for i := len(parts) - 1; i >= 0; i-- {
 		if parts[i] != "" {
+			if stp != "" {
+				return parts[i] + "|" + stp
+			}
 			return parts[i]
 		}
 	}
@@ -95,168 +74,256 @@ func sizeHint(raw string) int {
 		return 0
 	}
 	stp := u.Query().Get("stp")
+	
 	if stp == "" {
-		return 1_000_000
+		return 500_000
 	}
-	re := regexp.MustCompile(`s(\d+)x(\d+)`)
-	m := re.FindStringSubmatch(stp)
-	if len(m) == 3 {
+
+	isCropped := regexp.MustCompile(`c\d+\.\d+\.\d+\.\d+`).MatchString(stp)
+
+	if regexp.MustCompile(`dst-jpg[^ps]*_e35[^ps]*_tt6$`).MatchString(stp) {
+		return 100_000_000
+	}
+
+	reP := regexp.MustCompile(`p(\d+)x(\d+)`)
+	if m := reP.FindStringSubmatch(stp); len(m) == 3 {
 		w, _ := strconv.Atoi(m[1])
 		h, _ := strconv.Atoi(m[2])
-		if w > h {
-			return w
+		area := w * h
+		
+		if (w == 1080 && h == 1080) || (w == 720 && h == 720) {
+			return area * 1000
 		}
-		return h
+		
+		return area * 100
 	}
-	return 0
+
+	reS := regexp.MustCompile(`s(\d+)x(\d+)`)
+	if m := reS.FindStringSubmatch(stp); len(m) == 3 {
+		w, _ := strconv.Atoi(m[1])
+		h, _ := strconv.Atoi(m[2])
+		area := w * h
+		
+		if (w == 1080 && h == 1080) || (w == 750 && h == 750) {
+			if isCropped {
+				return area * 50 
+			}
+			return area * 500 
+		}
+		
+		if isCropped {
+			return area / 10 
+		}
+		return area * 10
+	}
+	
+	if isCropped {
+		return 1 
+	}
+	
+	return 100_000
 }
 
-func (s *InstagramBrowserService) GetPostImages(postURL string) ([]string, error) {
-	log.Printf("[Instagram Browser] Starting extraction for: %s", postURL)
+func decodeEscapes(s string) string {
+	s = strings.ReplaceAll(s, `\u0026`, "&")
+	s = strings.ReplaceAll(s, "&amp;", "&")
+	s = strings.ReplaceAll(s, `\/`, "/")
+	s = strings.ReplaceAll(s, `\u00253D`, "=")
+	s = strings.ReplaceAll(s, `\u003D`, "=")
+	return s
+}
 
-	var cookieList []cookieJSON
+
+func (s *InstagramHTTPService) httpGetWithCookies(ctx context.Context, rawURL string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0 Mobile Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9,id;q=0.8")
+	req.Header.Set("Sec-Fetch-Mode", "navigate")
+	req.Header.Set("Sec-Fetch-Dest", "document")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
+	req.Header.Set("Referer", "https://www.instagram.com/")
+
 	for name, value := range s.cookies {
-		cookieList = append(cookieList, cookieJSON{
-			Name:   name,
-			Value:  value,
-			Domain: ".instagram.com",
-			Path:   "/",
+		req.AddCookie(&http.Cookie{
+			Name:  name,
+			Value: value,
 		})
 	}
 
-	log.Printf("[Instagram Browser] Loaded %d cookies", len(cookieList))
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
 
-	// opts := append(chromedp.DefaultExecAllocatorOptions[:],
-	// 	// chromedp.ExecPath("/usr/bin/google-chrome"),
-	// 	chromedp.ExecPath(os.Getenv("CHROME_BIN")),
-	// 	chromedp.NoSandbox,
-	// 	chromedp.Flag("headless", true),
-	// 	chromedp.Flag("disable-gpu", true),
-	// 	chromedp.Flag("disable-dev-shm-usage", true),
-	// )
-
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.NoSandbox,
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("disable-dev-shm-usage", true),
-	)
-
-	if bin := os.Getenv("CHROME_BIN"); bin != "" {
-		if _, err := os.Stat(bin); err == nil {
-			opts = append(opts, chromedp.ExecPath(bin))
-		} else {
-			log.Printf("[Instagram Browser] CHROME_BIN=%s tidak ditemukan, fallback ke auto-detect", bin)
-		}
+	if resp.StatusCode >= 400 {
+		return "", fmt.Errorf("instagram returned status %d", resp.StatusCode)
 	}
 
-
-	allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
-	defer cancelAlloc()
-
-	ctx, cancel := chromedp.NewContext(allocCtx)
-	defer cancel()
-
-	ctx, cancelTimeout := context.WithTimeout(ctx, 30*time.Second)
-	defer cancelTimeout()
-
-	if err := chromedp.Run(ctx,
-		chromedp.Navigate("about:blank"),
-		network.Enable(),
-	); err != nil {
-		return nil, fmt.Errorf("failed to initialize browser: %w", err)
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
 	}
+	return string(b), nil
+}
 
-	var cookieActions []chromedp.Action
-	for _, c := range cookieList {
-		exp := parseExpires(c.Expires)
+func (s *InstagramHTTPService) extractImageCandidates(html string) []string {
+    var out []string
+    uniq := map[string]bool{}
 
-		sc := network.SetCookie(c.Name, c.Value).
-			WithDomain(c.Domain).
-			WithPath(c.Path).
-			WithHTTPOnly(c.HTTPOnly).
-			WithSecure(c.Secure).
-			WithURL("https://www.instagram.com/")
+    reDisplayURL := regexp.MustCompile(`"display_url"\s*:\s*"([^"]+)"`)
+    for _, m := range reDisplayURL.FindAllStringSubmatch(html, -1) {
+        u := decodeEscapes(m[1])
+        if strings.Contains(u, "scontent") {
+            uniq[u] = true
+        }
+    }
 
-		if exp != nil {
-			sc = sc.WithExpires(exp)
-		}
+    reCandidates := regexp.MustCompile(`"candidates"\s*:\s*\[([^\]]+)\]`)
+    reURL := regexp.MustCompile(`"url"\s*:\s*"([^"]+)"`)
 
-		switch strings.ToLower(c.SameSite) {
-		case "lax":
-			sc = sc.WithSameSite(network.CookieSameSiteLax)
-		case "strict":
-			sc = sc.WithSameSite(network.CookieSameSiteStrict)
-		default:
-			sc = sc.WithSameSite(network.CookieSameSiteNone)
-		}
+    for _, block := range reCandidates.FindAllStringSubmatch(html, -1) {
+        inner := block[1]
+        for _, m := range reURL.FindAllStringSubmatch(inner, -1) {
+            u := decodeEscapes(m[1])
+            if strings.Contains(u, "scontent") {
+                uniq[u] = true
+            }
+        }
+    }
 
-		cookieActions = append(cookieActions, sc)
-	}
+    reCarousel := regexp.MustCompile(`"carousel_media"\s*:\s*\[([^\]]+(?:\[[^\]]*\][^\]]*)*)\]`)
+    for _, block := range reCarousel.FindAllStringSubmatch(html, -1) {
+        inner := block[1]
+        for _, m := range reDisplayURL.FindAllStringSubmatch(inner, -1) {
+            u := decodeEscapes(m[1])
+            if strings.Contains(u, "scontent") {
+                uniq[u] = true
+            }
+        }
+        for _, m := range reURL.FindAllStringSubmatch(inner, -1) {
+            u := decodeEscapes(m[1])
+            if strings.Contains(u, "scontent") {
+                uniq[u] = true
+            }
+        }
+    }
 
-	if err := chromedp.Run(ctx, cookieActions...); err != nil {
-		log.Printf("[Instagram Browser] Warning: Some cookies may have failed to set: %v", err)
-	} else {
-		log.Printf("[Instagram Browser] Cookies injected successfully!")
-	}
+    reDirect := regexp.MustCompile(`https://scontent[^"\\<>\s]+`)
+    for _, u := range reDirect.FindAllString(html, -1) {
+        u = decodeEscapes(u)
+        if strings.Contains(u, "scontent") {
+            uniq[u] = true
+        }
+    }
 
-	var html string
-	if err := chromedp.Run(ctx,
-		chromedp.Navigate(postURL),
-		chromedp.Sleep(3*time.Second), 
-		chromedp.InnerHTML("html", &html, chromedp.ByQuery),
-	); err != nil {
-		return nil, fmt.Errorf("failed to load Instagram page: %w", err)
-	}
+    for u := range uniq {
+        out = append(out, u)
+    }
 
-	log.Printf("[Instagram Browser] Page loaded, scanning HTML...")
+    log.Printf("[Instagram] extracted %d unique image URLs", len(out))
+    return out
+}
 
-	reImg := regexp.MustCompile(`https://scontent[^"]+\.jpg[^"]*`)
-	matches := reImg.FindAllString(html, -1)
-	log.Printf("[Instagram Browser] Found %d image URLs", len(matches))
 
-	unique := map[string]bool{}
-	var final []string
-	u0026 := regexp.MustCompile(`\\u0026`)
-	amp := regexp.MustCompile(`&amp;`)
-
-	for _, u := range matches {
-		u = u0026.ReplaceAllString(u, "&")
-		u = amp.ReplaceAllString(u, "&")
-
-		if !strings.Contains(u, "scontent") || !strings.Contains(u, "instagram.com") {
-			continue
-		}
-
-		if !unique[u] {
-			unique[u] = true
-			final = append(final, u)
-		}
-	}
-
+func (s *InstagramHTTPService) pickBestPerContentKey(urls []string, returnAll bool) []string {
 	bestPerKey := map[string]string{}
 	bestScore := map[string]int{}
 
-	for _, u := range final {
+	log.Printf("[Instagram] Processing %d candidate URLs...", len(urls))
+	
+	for i, u := range urls {
 		key := contentKey(u)
 		score := sizeHint(u)
-
-		if _, ok := bestPerKey[key]; !ok || score > bestScore[key] {
+		
+		keyPreview := key
+		if len(keyPreview) > 30 {
+			keyPreview = keyPreview[:30] + "..."
+		}
+		
+		if _, ok := bestPerKey[key]; !ok {
 			bestPerKey[key] = u
 			bestScore[key] = score
+			log.Printf("[Instagram] [%d] NEW key=%s score=%d", i+1, keyPreview, score)
+		} else if score > bestScore[key] {
+			log.Printf("[Instagram] [%d] UPGRADE key=%s score=%d > %d", i+1, keyPreview, score, bestScore[key])
+			bestPerKey[key] = u
+			bestScore[key] = score
+		} else {
+			log.Printf("[Instagram] [%d] SKIP key=%s score=%d <= %d", i+1, keyPreview, score, bestScore[key])
 		}
 	}
 
-	var result []string
-	for _, u := range bestPerKey {
-		result = append(result, u)
+	type scoredURL struct {
+		url   string
+		score int
+	}
+	var scored []scoredURL
+	for key, u := range bestPerKey {
+		scored = append(scored, scoredURL{url: u, score: bestScore[key]})
 	}
 
-	log.Printf("[Instagram Browser] Selected %d best quality images from %d total URLs", len(result), len(final))
+	sort.Slice(scored, func(i, j int) bool {
+		return scored[i].score > scored[j].score
+	})
 
-	if len(result) == 0 {
-		return nil, fmt.Errorf("no images found in Instagram post")
+	maxResults := len(scored)
+	if !returnAll {
+		maxResults = 3
+		if len(scored) < maxResults {
+			maxResults = len(scored)
+		}
 	}
 
-	return result, nil
+	result := make([]string, 0, maxResults)
+	for i := 0; i < maxResults; i++ {
+		result = append(result, scored[i].url)
+		log.Printf("[Instagram] FINAL SELECTED [%d]: score=%d url=%s", i+1, scored[i].score, scored[i].url)
+	}
+
+	return result
+}
+
+func (s *InstagramHTTPService) GetPostImages(postURL string, returnAll bool) ([]string, error) {
+	log.Printf("[Instagram HTTP] fetching: %s (returnAll=%v)", postURL, returnAll)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
+
+	html, err := s.httpGetWithCookies(ctx, postURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch instagram page: %w", err)
+	}
+
+	cands := s.extractImageCandidates(html)
+	if len(cands) == 0 {
+		if strings.Contains(postURL, "?") {
+			postURL = postURL + "&hl=en"
+		} else {
+			postURL = postURL + "?hl=en"
+		}
+		html2, err2 := s.httpGetWithCookies(ctx, postURL)
+		if err2 == nil {
+			cands = s.extractImageCandidates(html2)
+		}
+	}
+
+	if len(cands) == 0 {
+		return nil, errors.New("no images found in Instagram post")
+	}
+
+	log.Printf("[Instagram HTTP] extracted %d unique image URLs", len(cands))
+
+	best := s.pickBestPerContentKey(cands, returnAll)
+	if len(best) == 0 {
+		return nil, errors.New("images detected but failed to select best quality")
+	}
+
+	log.Printf("[Instagram HTTP] selected %d image(s) from %d candidates", len(best), len(cands))
+	return best, nil
 }

@@ -43,8 +43,17 @@ func InstagramDownload(c *fiber.Ctx) error {
 
 	log.Printf("[Instagram] Successfully fetched %d full resolution image(s)", len(images))
 
+	proxiedImages := make([]string, len(images))
+	for i, imgURL := range images {
+		proxiedImages[i] = fmt.Sprintf("/api/v1/proxy/image?imageUrl=%s", imgURL)
+	}
+
 	return c.JSON(models.NewSuccessResponse(
-		fmt.Sprintf("Successfully fetched %d full resolution image(s)", len(images)),
-		images,
+		"Images retrieved successfully",
+		map[string]interface{}{
+			"count":  len(proxiedImages),
+			"images": proxiedImages,
+			"source": "instagram",
+		},
 	))
 }

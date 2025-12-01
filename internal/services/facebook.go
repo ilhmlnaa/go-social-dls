@@ -422,7 +422,7 @@ func ExtractFacebookID(fbURL string) (string, error) {
 		return matches[1], nil
 	}
 
-	return "", fmt.Errorf("Facebook ID not found in URL")
+	return "", fmt.Errorf("facebook id not found in url")
 }
 
 

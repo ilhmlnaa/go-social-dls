@@ -56,7 +56,11 @@ func PinterestDownload(c *fiber.Ctx) error {
 	log.Printf("[Pinterest] Successfully fetched image from pin")
 
 	return c.JSON(models.NewSuccessResponse(
-		"Successfully fetched Pinterest image",
-		[]string{imgURL},
+		"Images retrieved successfully",
+		map[string]interface{}{
+			"count":  1,
+			"images": []string{imgURL},
+			"source": "pinterest",
+		},
 	))
 }

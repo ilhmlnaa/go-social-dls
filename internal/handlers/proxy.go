@@ -14,17 +14,36 @@ import (
 )
 
 func ImageProxy(c *fiber.Ctx) error {
-	imageUrl := c.Query("imageUrl")
+	imageUrl := c.Query("url")
+	if imageUrl == "" {
+		imageUrl = c.Query("imageUrl") 
+	}
 	if imageUrl == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewErrorResponse(
-			"Parameter 'imageUrl' is required",
+			"Parameter 'url' or 'imageUrl' is required",
 			nil,
 		))
 	}
 
-	if !strings.HasPrefix(imageUrl, "https://i.pinimg.com/") {
+	referer := c.Query("referer")
+
+	allowedDomains := []string{
+		"https://i.pinimg.com/",
+		"https://scontent.cdninstagram.com/",
+		"https://i.pximg.net/",
+	}
+
+	isAllowed := false
+	for _, domain := range allowedDomains {
+		if strings.HasPrefix(imageUrl, domain) {
+			isAllowed = true
+			break
+		}
+	}
+
+	if !isAllowed {
 		return c.Status(fiber.StatusForbidden).JSON(models.NewErrorResponse(
-			"Only i.pinimg.com images are allowed",
+			"Image domain not allowed",
 			nil,
 		))
 	}
@@ -37,7 +56,22 @@ func ImageProxy(c *fiber.Ctx) error {
 		))
 	}
 
-	resp, err := http.Get(imageUrl)
+	req, err := http.NewRequest("GET", imageUrl, nil)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewErrorResponse(
+			"Failed to create request",
+			err,
+		))
+	}
+
+	if referer != "" {
+		req.Header.Set("Referer", referer)
+	}
+	
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("[Proxy] Failed to fetch image: %v", err)
 		return c.Status(fiber.StatusBadGateway).JSON(models.NewErrorResponse(
@@ -69,3 +103,4 @@ func ImageProxy(c *fiber.Ctx) error {
 
 	return c.Send(body)
 }
+

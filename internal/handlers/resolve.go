@@ -44,7 +44,7 @@ func ResolvePinterestUrl(c *fiber.Ctx) error {
 
 	return c.JSON(models.NewSuccessResponse(
 		"URL successfully resolved",
-		fiber.Map{
+		map[string]interface{}{
 			"url": finalUrl,
 		},
 	))

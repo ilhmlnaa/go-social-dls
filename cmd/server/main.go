@@ -57,6 +57,7 @@ func setupRoutes(app *fiber.App) {
 	api.Get("/facebook", handlers.FacebookDownload)
 	api.Get("/pinterest", handlers.PinterestDownload)
 	api.Get("/instagram", handlers.InstagramDownload)
+	api.Get("/pixiv", handlers.PixivDownload)
 	api.Get("/generic", handlers.GenericDownload)
 	api.Get("/proxy/image", handlers.ImageProxy)
 	api.Get("/resolve/pinterest", handlers.ResolvePinterestUrl)

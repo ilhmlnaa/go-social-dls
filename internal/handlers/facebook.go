@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
@@ -43,7 +42,11 @@ func FacebookDownload(c *fiber.Ctx) error {
 	log.Printf("[Facebook] Successfully fetched %d photos", len(photos))
 
 	return c.JSON(models.NewSuccessResponse(
-		fmt.Sprintf("Successfully fetched %d photo(s)", len(photos)),
-		photos,
+		"Images retrieved successfully",
+		map[string]interface{}{
+			"count":  len(photos),
+			"images": photos,
+			"source": "facebook",
+		},
 	))
 }

@@ -64,6 +64,18 @@ func LoadCookies(cookiesDir, platform string) (map[string]string, error) {
 	return nil, fmt.Errorf("failed to load cookies for %s: %w", platform, err)
 }
 
+func LoadCookiesOptional(cookiesDir, platform string) (map[string]string, error) {
+	filename := filepath.Join(cookiesDir, platform+".json")
+	cookies, err := LoadCookiesFromFile(filename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return make(map[string]string), nil
+		}
+		return nil, err
+	}
+	return cookies, nil
+}
+
 func ValidateCookies(cookies map[string]string, required []string) error {
 	for _, key := range required {
 		if _, ok := cookies[key]; !ok {

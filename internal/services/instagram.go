@@ -24,7 +24,7 @@ type InstagramHTTPService struct {
 }
 
 func NewInstagramHTTPService(cookiesDir string) (*InstagramHTTPService, error) {
-	cookies, err := utils.LoadCookies(cookiesDir, "instagram")
+	cookies, err := utils.LoadCookiesOptional(cookiesDir, "instagram")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load Instagram cookies: %w", err)
 	}
@@ -297,6 +297,9 @@ func (s *InstagramHTTPService) GetPostImages(postURL string, returnAll bool) ([]
 
 	html, err := s.httpGetWithCookies(ctx, postURL)
 	if err != nil {
+		if len(s.cookies) == 0 {
+			return nil, errors.New("This service requires cookies to function properly")
+		}
 		return nil, fmt.Errorf("failed to fetch instagram page: %w", err)
 	}
 
@@ -314,6 +317,9 @@ func (s *InstagramHTTPService) GetPostImages(postURL string, returnAll bool) ([]
 	}
 
 	if len(cands) == 0 {
+		if len(s.cookies) == 0 {
+			return nil, errors.New("This service requires cookies to function properly")
+		}
 		return nil, errors.New("no images found in Instagram post")
 	}
 

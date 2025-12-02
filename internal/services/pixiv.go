@@ -67,13 +67,8 @@ type PixivPage struct {
 }
 
 func NewPixivService(cookiesDir string) (*PixivService, error) {
-	cookies, err := utils.LoadCookies(cookiesDir, "pixiv")
+	cookies, err := utils.LoadCookiesOptional(cookiesDir, "pixiv")
 	if err != nil {
-		return nil, err
-	}
-
-	required := []string{"PHPSESSID"}
-	if err := utils.ValidateCookies(cookies, required); err != nil {
 		return nil, err
 	}
 
@@ -122,6 +117,9 @@ func (s *PixivService) GetIllustrationData(illustID string) (*PixivIllustrationD
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		if len(s.cookies) == 0 || s.cookies["PHPSESSID"] == "" {
+			return nil, fmt.Errorf("Pixiv service requires authentication cookie (PHPSESSID)")
+		}
 		return nil, fmt.Errorf("API request failed with status: %d", resp.StatusCode)
 	}
 
@@ -172,6 +170,9 @@ func (s *PixivService) GetMultiplePages(illustID string) ([]PixivPage, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		if len(s.cookies) == 0 || s.cookies["PHPSESSID"] == "" {
+			return nil, fmt.Errorf("Pixiv service requires authentication cookie (PHPSESSID)")
+		}
 		return nil, fmt.Errorf("API request failed with status: %d", resp.StatusCode)
 	}
 

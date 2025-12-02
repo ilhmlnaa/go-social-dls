@@ -38,13 +38,8 @@ type TwitterGraphQLResponse struct {
 }
 
 func NewTwitterService(cookiesDir string) (*TwitterService, error) {
-	cookies, err := utils.LoadCookies(cookiesDir, "twitter")
+	cookies, err := utils.LoadCookiesOptional(cookiesDir, "twitter")
 	if err != nil {
-		return nil, err
-	}
-
-	required := []string{"auth_token", "ct0"}
-	if err := utils.ValidateCookies(cookies, required); err != nil {
 		return nil, err
 	}
 
@@ -66,7 +61,11 @@ func (s *TwitterService) GetTweetPhotos(tweetID string) ([]string, error) {
 	req.Header.Set("content-type", "application/json")
 	req.Header.Set("referer", fmt.Sprintf("https://twitter.com/i/status/%s", tweetID))
 	req.Header.Set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-	req.Header.Set("x-csrf-token", s.cookies["ct0"])
+	
+	if ct0, ok := s.cookies["ct0"]; ok {
+		req.Header.Set("x-csrf-token", ct0)
+	}
+	
 	req.Header.Set("x-twitter-active-user", "yes")
 	req.Header.Set("x-twitter-auth-type", "OAuth2Session")
 	req.Header.Set("x-twitter-client-language", "en")
@@ -129,6 +128,9 @@ func (s *TwitterService) GetTweetPhotos(tweetID string) ([]string, error) {
 
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
+		if len(s.cookies) == 0 || s.cookies["auth_token"] == "" || s.cookies["ct0"] == "" {
+			return nil, fmt.Errorf("Twitter service requires authentication cookies (auth_token, ct0)")
+		}
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}
 

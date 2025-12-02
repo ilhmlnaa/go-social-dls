@@ -47,13 +47,8 @@ type FacebookGraphQLResponse struct {
 }
 
 func NewFacebookService(cookiesDir string) (*FacebookService, error) {
-	cookies, err := utils.LoadCookies(cookiesDir, "facebook")
+	cookies, err := utils.LoadCookiesOptional(cookiesDir, "facebook")
 	if err != nil {
-		return nil, err
-	}
-
-	required := []string{"c_user", "xs"}
-	if err := utils.ValidateCookies(cookies, required); err != nil {
 		return nil, err
 	}
 
@@ -251,6 +246,13 @@ func (s *FacebookService) extractPhotosFromURL(targetURL string) ([]string, erro
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode >= 400 {
+		if len(s.cookies) == 0 || s.cookies["c_user"] == "" || s.cookies["xs"] == "" {
+			return nil, fmt.Errorf("Facebook service requires authentication cookies (c_user, xs)")
+		}
+		return nil, fmt.Errorf("HTTP request failed with status: %d", resp.StatusCode)
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -326,6 +328,9 @@ func (s *FacebookService) extractPhotosFromURL(targetURL string) ([]string, erro
 	}
 
 	if len(photos) == 0 {
+		if len(s.cookies) == 0 || s.cookies["c_user"] == "" || s.cookies["xs"] == "" {
+			return nil, fmt.Errorf("Facebook service requires authentication cookies (c_user, xs)")
+		}
 		return nil, fmt.Errorf("no photos found in URL: %s", targetURL)
 	}
 

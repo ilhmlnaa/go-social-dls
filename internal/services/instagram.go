@@ -47,21 +47,14 @@ func contentKey(raw string) string {
 	}
 
 	cacheKey := u.Query().Get("ig_cache_key")
-	stp := u.Query().Get("stp")
-	
+
 	if cacheKey != "" {
-		if stp != "" {
-			return cacheKey + "|" + stp
-		}
 		return cacheKey
 	}
 
 	parts := strings.Split(u.Path, "/")
 	for i := len(parts) - 1; i >= 0; i-- {
 		if parts[i] != "" {
-			if stp != "" {
-				return parts[i] + "|" + stp
-			}
 			return parts[i]
 		}
 	}
@@ -133,6 +126,38 @@ func decodeEscapes(s string) string {
 	return s
 }
 
+func normalizeInstagramMediaURL(raw string) (string, bool) {
+	clean := strings.TrimSpace(decodeEscapes(raw))
+	if clean == "" {
+		return "", false
+	}
+
+	u, err := url.Parse(clean)
+	if err != nil {
+		return "", false
+	}
+
+	if !u.IsAbs() || (u.Scheme != "http" && u.Scheme != "https") {
+		return "", false
+	}
+
+	host := strings.ToLower(u.Hostname())
+	if !strings.Contains(host, "fbcdn.net") {
+		return "", false
+	}
+
+	if u.Path == "" || u.Path == "/" || !strings.Contains(strings.ToLower(u.Path), "/v/") {
+		return "", false
+	}
+
+	if u.Query().Get("ig_cache_key") == "" {
+		return "", false
+	}
+
+	return u.String(), true
+}
+
+
 
 func (s *InstagramHTTPService) httpGetWithCookies(ctx context.Context, rawURL string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
@@ -176,12 +201,16 @@ func (s *InstagramHTTPService) extractImageCandidates(html string) []string {
     var out []string
     uniq := map[string]bool{}
 
+	addCandidate := func(raw string) {
+		u, ok := normalizeInstagramMediaURL(raw)
+		if ok {
+			uniq[u] = true
+		}
+	}
+
     reDisplayURL := regexp.MustCompile(`"display_url"\s*:\s*"([^"]+)"`)
     for _, m := range reDisplayURL.FindAllStringSubmatch(html, -1) {
-        u := decodeEscapes(m[1])
-        if strings.Contains(u, "scontent") {
-            uniq[u] = true
-        }
+		addCandidate(m[1])
     }
 
     reCandidates := regexp.MustCompile(`"candidates"\s*:\s*\[([^\]]+)\]`)
@@ -190,10 +219,7 @@ func (s *InstagramHTTPService) extractImageCandidates(html string) []string {
     for _, block := range reCandidates.FindAllStringSubmatch(html, -1) {
         inner := block[1]
         for _, m := range reURL.FindAllStringSubmatch(inner, -1) {
-            u := decodeEscapes(m[1])
-            if strings.Contains(u, "scontent") {
-                uniq[u] = true
-            }
+			addCandidate(m[1])
         }
     }
 
@@ -201,25 +227,16 @@ func (s *InstagramHTTPService) extractImageCandidates(html string) []string {
     for _, block := range reCarousel.FindAllStringSubmatch(html, -1) {
         inner := block[1]
         for _, m := range reDisplayURL.FindAllStringSubmatch(inner, -1) {
-            u := decodeEscapes(m[1])
-            if strings.Contains(u, "scontent") {
-                uniq[u] = true
-            }
+			addCandidate(m[1])
         }
         for _, m := range reURL.FindAllStringSubmatch(inner, -1) {
-            u := decodeEscapes(m[1])
-            if strings.Contains(u, "scontent") {
-                uniq[u] = true
-            }
+			addCandidate(m[1])
         }
     }
 
-    reDirect := regexp.MustCompile(`https://scontent[^"\\<>\s]+`)
-    for _, u := range reDirect.FindAllString(html, -1) {
-        u = decodeEscapes(u)
-        if strings.Contains(u, "scontent") {
-            uniq[u] = true
-        }
+    reDirect := regexp.MustCompile(`https:\/\/[^"\s]+fbcdn\.net\/v\/[^"\s]+`)
+    for _, raw := range reDirect.FindAllString(html, -1) {
+		addCandidate(raw)
     }
 
     for u := range uniq {
@@ -305,12 +322,13 @@ func (s *InstagramHTTPService) GetPostImages(postURL string, returnAll bool) ([]
 
 	cands := s.extractImageCandidates(html)
 	if len(cands) == 0 {
-		if strings.Contains(postURL, "?") {
-			postURL = postURL + "&hl=en"
+		fallbackURL := postURL
+		if strings.Contains(fallbackURL, "?") {
+			fallbackURL = fallbackURL + "&hl=en"
 		} else {
-			postURL = postURL + "?hl=en"
+			fallbackURL = fallbackURL + "?hl=en"
 		}
-		html2, err2 := s.httpGetWithCookies(ctx, postURL)
+		html2, err2 := s.httpGetWithCookies(ctx, fallbackURL)
 		if err2 == nil {
 			cands = s.extractImageCandidates(html2)
 		}

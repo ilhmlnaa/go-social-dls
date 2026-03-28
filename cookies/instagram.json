@@ -1,20 +1,7 @@
 [
   {
     "domain": ".instagram.com",
-    "expirationDate": 1788521061.318277,
-    "hostOnly": false,
-    "httpOnly": true,
-    "name": "ps_n",
-    "path": "/",
-    "sameSite": "no_restriction",
-    "secure": true,
-    "session": false,
-    "storeId": null,
-    "value": "1"
-  },
-  {
-    "domain": ".instagram.com",
-    "expirationDate": 1787104698.353222,
+    "expirationDate": 1809262357.643197,
     "hostOnly": false,
     "httpOnly": true,
     "name": "datr",
@@ -23,24 +10,11 @@
     "secure": true,
     "session": false,
     "storeId": null,
-    "value": "u7V1aFsy5AEDeYXTnXgv5TiT"
+    "value": "Fc_HaXR7GE40DfzKBrYg5YbE"
   },
   {
     "domain": ".instagram.com",
-    "expirationDate": 1775186847.318963,
-    "hostOnly": false,
-    "httpOnly": false,
-    "name": "ig_nrcb",
-    "path": "/",
-    "sameSite": null,
-    "secure": true,
-    "session": false,
-    "storeId": null,
-    "value": "1"
-  },
-  {
-    "domain": ".instagram.com",
-    "expirationDate": 1772205373.506998,
+    "expirationDate": 1782478537.931194,
     "hostOnly": false,
     "httpOnly": false,
     "name": "ds_user_id",
@@ -49,11 +23,11 @@
     "secure": true,
     "session": false,
     "storeId": null,
-    "value": "78792885995"
+    "value": "3934596126"
   },
   {
     "domain": ".instagram.com",
-    "expirationDate": 1798989373.506704,
+    "expirationDate": 1809262537.930998,
     "hostOnly": false,
     "httpOnly": false,
     "name": "csrftoken",
@@ -62,37 +36,24 @@
     "secure": true,
     "session": false,
     "storeId": null,
-    "value": "Cc342LwHrdFlh8lEexVmcW7au7ekCIGR"
+    "value": "qXSxpRxlQanpn3eVYWfxET0csm2MMmoI"
   },
   {
     "domain": ".instagram.com",
-    "expirationDate": 1775186847.318845,
+    "expirationDate": 1806238357.643287,
     "hostOnly": false,
     "httpOnly": true,
     "name": "ig_did",
     "path": "/",
-    "sameSite": null,
+    "sameSite": "no_restriction",
     "secure": true,
     "session": false,
     "storeId": null,
-    "value": "B43B592B-C010-48D1-9B4B-059A48D3F785"
+    "value": "B29F8093-FEB2-4590-AADD-5929CAD74E7C"
   },
   {
     "domain": ".instagram.com",
-    "expirationDate": 1788521061.318142,
-    "hostOnly": false,
-    "httpOnly": true,
-    "name": "ps_l",
-    "path": "/",
-    "sameSite": "lax",
-    "secure": true,
-    "session": false,
-    "storeId": null,
-    "value": "1"
-  },
-  {
-    "domain": ".instagram.com",
-    "expirationDate": 1765034167,
+    "expirationDate": 1775307173,
     "hostOnly": false,
     "httpOnly": false,
     "name": "wd",
@@ -101,33 +62,33 @@
     "secure": true,
     "session": false,
     "storeId": null,
-    "value": "1912x924"
+    "value": "1920x927"
   },
   {
     "domain": ".instagram.com",
-    "expirationDate": 1781750709.371487,
+    "expirationDate": 1809262357.643319,
     "hostOnly": false,
-    "httpOnly": false,
+    "httpOnly": true,
     "name": "mid",
     "path": "/",
-    "sameSite": null,
+    "sameSite": "no_restriction",
     "secure": true,
     "session": false,
     "storeId": null,
-    "value": "aCQDtgALAAEWgIqR8201eC8uWlDh"
+    "value": "acfPFQAEAAEhCAR-FXMe3YVlsXqK"
   },
   {
     "domain": ".instagram.com",
-    "expirationDate": 1795965364.913304,
+    "expirationDate": 1806238370.625522,
     "hostOnly": false,
     "httpOnly": true,
     "name": "sessionid",
     "path": "/",
-    "sameSite": null,
+    "sameSite": "no_restriction",
     "secure": true,
     "session": false,
     "storeId": null,
-    "value": "78792885995%3AWe3ims9tQCTDpw%3A12%3AAYg464yhQsAv89pYQw9xzAkMZhXstiIcmDMjNKGaaA"
+    "value": "3934596126%3ARi8Bsi4h7DuG9T%3A1%3AAYiTYKL_FYMZLezHvgBK8wpfgZFaiZmPJdvuxxgt_w"
   },
   {
     "domain": ".instagram.com",
@@ -139,6 +100,6 @@
     "secure": true,
     "session": true,
     "storeId": null,
-    "value": "\"VLL\\05478792885995\\0541795965373:01fe6ac03cecc77da9b518ad10f18b6a2767c6c3f1d2240ec4a9e5e3b1c42fa99e5c29f6\""
+    "value": "\"CCO\\0543934596126\\0541806238537:01fef6cf2b37dcf74ae085dcd74ddc06ca7e50d40846bb9c8ce0e211d4ac4bdce7cf7715\""
   }
 ]

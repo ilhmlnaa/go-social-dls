@@ -30,6 +30,7 @@ func main() {
 			"/twitter?url={tweet_url} - Download images from a tweet",
 			"/pinterest?url={pinterest_url} - Download images from a Pinterest post",
 			"/instagram?url={instagram_url} - Download images from an Instagram post",
+			"/danbooru?url={post_url|id}&children={true|false} - Download images from a Danbooru post (incl. child posts)",
 			"/generic?url={image_url} - Download image from a generic URL",
 			"/resolve?url={short_url} - Resolve a shortened URL to its final destination",
 			"/resolve/pinterest?url={pinterest_short_url} - Resolve a Pinterest short URL to its final destination",
@@ -43,6 +44,7 @@ func main() {
 	mux.Handle("/pinterest", middleware.CORS(handlers.PinterestDownloadHandler()))
 	mux.Handle("/instagram", middleware.CORS(handlers.InstagramDownloadHandler()))
 	mux.Handle("/facebook", middleware.CORS(handlers.FacebookDownloadHandler()))
+	mux.Handle("/danbooru", middleware.CORS(handlers.DanbooruDownloadHandler()))
 
 	//  API Endpoint Helpers
 	mux.Handle("/resolve", middleware.CORS(resolve.GenericResolveUrl()))

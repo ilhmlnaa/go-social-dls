@@ -14,6 +14,7 @@ func Root(c *fiber.Ctx) error {
 		"GET /api/v1/pinterest?url={pin_url} - Download Pinterest images",
 		"GET /api/v1/instagram?url={ig_url} - Download Instagram images",
 		"GET /api/v1/danbooru?url={post_url|id}&children={true|false} - Download Danbooru post (incl. child posts)",
+		"GET /api/v1/zerochan?url={entry_url|id} - Download Zerochan entry (full-res image)",
 		"GET /api/v1/generic?url={image_url} - Download any image",
 		"GET /api/v1/proxy/image?imageUrl={image_url} - Proxy Pinterest image to avoid CORS",
 		"GET /api/v1/resolve/pinterest?url={pinterest_short_url} - Resolve Pinterest short URL",

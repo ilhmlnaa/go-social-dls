@@ -69,6 +69,7 @@ func setupRoutes(app *fiber.App) {
 	api.Get("/instagram", handlers.InstagramDownload)
 	api.Get("/pixiv", handlers.PixivDownload)
 	api.Get("/danbooru", handlers.DanbooruDownload)
+	api.Get("/zerochan", handlers.ZerochanDownload)
 	api.Get("/generic", handlers.GenericDownload)
 	api.Get("/proxy/image", handlers.ImageProxy)
 	api.Get("/resolve/pinterest", handlers.ResolvePinterestUrl)
@@ -87,6 +88,7 @@ func isKnownPath(path string) bool {
 		"/api/v1/instagram",
 		"/api/v1/pixiv",
 		"/api/v1/danbooru",
+		"/api/v1/zerochan",
 		"/api/v1/generic",
 		"/api/v1/proxy/image",
 		"/api/v1/resolve/pinterest",

@@ -4,10 +4,12 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
 	"twitter-down/internal/models"
+	"twitter-down/internal/utils"
 )
 
 func ResolvePinterestUrl(c *fiber.Ctx) error {
@@ -51,11 +53,9 @@ func ResolvePinterestUrl(c *fiber.Ctx) error {
 }
 
 func followRedirect(rawUrl string) (string, error) {
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
+	client := utils.NewHTTPClientWithRedirect("pinterest", 20*time.Second, func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	})
 
 	req, err := http.NewRequest("HEAD", rawUrl, nil)
 	if err != nil {

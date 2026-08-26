@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"log"
-	"net/http"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v2"
 
 	"twitter-down/internal/models"
+	"twitter-down/internal/utils"
 )
 
 func PinterestDownload(c *fiber.Ctx) error {
@@ -19,7 +20,8 @@ func PinterestDownload(c *fiber.Ctx) error {
 		))
 	}
 
-	resp, err := http.Get(urlPin)
+	client := utils.NewHTTPClient("pinterest", 20*time.Second)
+	resp, err := client.Get(urlPin)
 	if err != nil {
 		log.Printf("[Pinterest] Failed to fetch URL: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewErrorResponse(

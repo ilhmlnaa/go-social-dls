@@ -7,10 +7,12 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
 	"twitter-down/internal/models"
+	"twitter-down/internal/utils"
 )
 
 func ImageProxy(c *fiber.Ctx) error {
@@ -70,7 +72,18 @@ func ImageProxy(c *fiber.Ctx) error {
 	
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
-	client := &http.Client{}
+	// Pilih provider proxy berdasarkan domain sumber gambar.
+	proxyProvider := "proxy"
+	switch {
+	case strings.HasPrefix(imageUrl, "https://i.pximg.net/"):
+		proxyProvider = "pixiv"
+	case strings.HasPrefix(imageUrl, "https://scontent.cdninstagram.com/"):
+		proxyProvider = "instagram"
+	case strings.HasPrefix(imageUrl, "https://i.pinimg.com/"):
+		proxyProvider = "pinterest"
+	}
+
+	client := utils.NewHTTPClient(proxyProvider, 30*time.Second)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("[Proxy] Failed to fetch image: %v", err)

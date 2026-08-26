@@ -29,9 +29,7 @@ func NewInstagramHTTPService(cookiesDir string) (*InstagramHTTPService, error) {
 		return nil, fmt.Errorf("failed to load Instagram cookies: %w", err)
 	}
 
-	cl := &http.Client{
-		Timeout: 20 * time.Second,
-	}
+	cl := utils.NewHTTPClient("instagram", 20*time.Second)
 
 	return &InstagramHTTPService{
 		cookiesDir: cookiesDir,

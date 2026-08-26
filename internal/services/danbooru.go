@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strconv"
 	"time"
+
+	"twitter-down/internal/utils"
 )
 
 // Danbooru mewajibkan User-Agent yang jelas (lihat help:api).
@@ -78,9 +80,10 @@ type DanbooruService struct {
 }
 
 // NewDanbooruService membuat service dengan auth opsional dari environment.
+// HTTP client memakai proxy PROXY_DANBOORU / PROXY_GLOBAL bila di-set.
 func NewDanbooruService() *DanbooruService {
 	return &DanbooruService{
-		client: &http.Client{Timeout: 20 * time.Second},
+		client: utils.NewHTTPClient("danbooru", 20*time.Second),
 		login:  os.Getenv("DANBOORU_LOGIN"),
 		apiKey: os.Getenv("DANBOORU_API_KEY"),
 	}

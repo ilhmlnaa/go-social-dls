@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"twitter-down/internal/utils"
 )
@@ -53,7 +54,7 @@ func NewFacebookService(cookiesDir string) (*FacebookService, error) {
 	}
 
 	return &FacebookService{
-		client:  &http.Client{},
+		client:  utils.NewHTTPClient("facebook", 20*time.Second),
 		cookies: cookies,
 	}, nil
 }

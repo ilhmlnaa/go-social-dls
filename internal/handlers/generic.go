@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -78,7 +79,7 @@ func GenericDownload(c *fiber.Ctx) error {
 		))
 	}
 
-	client := &http.Client{}
+	client := utils.NewHTTPClient("generic", 30*time.Second)
 	req, err := http.NewRequest("GET", imageURL, nil)
 	if err != nil {
 		log.Printf("[Generic] Failed to create request: %v", err)

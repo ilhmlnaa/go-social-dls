@@ -13,8 +13,9 @@ import (
 // DanbooruDownload mengambil gambar dari sebuah post Danbooru lewat API resmi.
 //
 // Query params:
-//   url      : URL post (https://danbooru.donmai.us/posts/12039889) ATAU id mentah. Wajib.
-//   children : "true" untuk menyertakan induk + semua child posts dalam satu grup.
+//
+//	url      : URL post (https://danbooru.donmai.us/posts/12039889) ATAU id mentah. Wajib.
+//	children : "true" untuk menyertakan induk + semua child posts dalam satu grup.
 func DanbooruDownload(c *fiber.Ctx) error {
 	input := c.Query("url")
 	if input == "" {

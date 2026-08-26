@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"twitter-down/internal/utils"
 )
@@ -73,7 +74,7 @@ func NewPixivService(cookiesDir string) (*PixivService, error) {
 	}
 
 	return &PixivService{
-		client:  &http.Client{},
+		client:  utils.NewHTTPClient("pixiv", 20*time.Second),
 		cookies: cookies,
 	}, nil
 }
